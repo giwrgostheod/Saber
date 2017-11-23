@@ -13,6 +13,8 @@ public class Task extends AbstractTask {
 	
 	private WindowBatch batch1, batch2;
 	
+	private ResultCollector resultCollector;
+	
 	public Task() {
 		this(0, null, null);
 	}
@@ -22,6 +24,7 @@ public class Task extends AbstractTask {
 		this.taskid = taskid;
 		this.batch1 = batch1;
 		this.batch2 = batch2;
+		this.resultCollector = new ResultCollector();
 		
 		/* Either batch would do */
 		if (batch1 != null)
@@ -69,7 +72,7 @@ public class Task extends AbstractTask {
 			return 0;
 		
 		ResultHandler handler = batch1.getQuery().getTaskDispatcher().getHandler();
-		ResultCollector.forwardAndFree (handler, batch1);
+		resultCollector.forwardAndFree (handler, batch1);
 		
 		WindowBatchFactory.free(batch1);
 		return 0;

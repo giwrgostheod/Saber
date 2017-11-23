@@ -9,6 +9,7 @@ import uk.ac.imperial.lsds.saber.WindowBatchFactory;
 import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.buffers.CircularQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
+import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
@@ -27,11 +28,13 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	
 	private WindowDefinition firstWindow;
 	private ITupleSchema firstSchema;
+	private Boolean isFirstRelational;
 	
 	private int firstTupleSize;
 	
 	private WindowDefinition secondWindow;
 	private ITupleSchema secondSchema;
+	private Boolean isSecondRelational;
 	
 	private int secondTupleSize;
 	
@@ -59,18 +62,24 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	private long secondNextTime;
 	private long secondEndTime;
 	
-	private int mask;
+	private int mask1, mask2;
 	
 	private int latencyMark = -1;
 	
 	private Object lock = new Object();
 
-	public JoinTaskDispatcher (Query query) {
+	public JoinTaskDispatcher (Query query, Boolean isFirstRelational, Boolean isSecondRelational) {
 		
 		parent = query;
 		
-		firstBuffer  = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
-		secondBuffer = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
+		this.isFirstRelational = isFirstRelational;
+		this.isSecondRelational = isSecondRelational;
+		
+		// based on isRelational choose if we have a Relational Table or not
+		firstBuffer  = this.isFirstRelational ? new RelationalTableQueryBuffer(parent.getId(), SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false) 
+												: new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
+		secondBuffer = this.isSecondRelational ? new RelationalTableQueryBuffer(parent.getId(), SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false) 
+												: new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
 		
 		firstWindow = parent.getFirstWindowDefinition();
 		firstSchema = parent.getFirstSchema();
@@ -89,8 +98,8 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		
 		secondLastEndIndex = -secondTupleSize;
 		
-		/* The assumption is that both first and second buffer are of the same size */
-		mask = firstBuffer.capacity() - 1;
+		mask1 = firstBuffer.capacity() - 1;
+		mask2 = secondBuffer.capacity() - 1;
 		
 		batchSize = parent.getQueryConf().getBatchSize();
 		
@@ -179,6 +188,9 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		
 		firstEndIndex = idx + length - firstTupleSize;
 		
+		if (isFirstRelational) 
+			return;
+		
 		synchronized (lock) {
 			
 			if (firstEndIndex < firstStartIndex)
@@ -231,6 +243,9 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		// System.out.println(String.format("[DBG] assemble 2: idx %10d length %10d", idx, length));
 		
 		secondEndIndex = idx + length - secondTupleSize;
+		
+		if (isSecondRelational) 
+			return;
 		
 		synchronized (lock) {
 			
@@ -297,10 +312,10 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		int secondFreePointer = Integer.MIN_VALUE;
 		
 		if (firstNextIndex != firstStartIndex)
-			firstFreePointer = (firstNextIndex - firstTupleSize) & mask;
+			firstFreePointer = (firstNextIndex - firstTupleSize) & mask1;
 		
 		if (secondNextIndex != secondStartIndex)
-			secondFreePointer = (secondNextIndex - secondTupleSize) & mask;
+			secondFreePointer = (secondNextIndex - secondTupleSize) & mask2;
 		
 		/* Find latency mark */
 		int mark = -1;
@@ -392,11 +407,11 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		/*
 		 * Second, move the start pointer for the next task to the next pointer.
 		 */
-		if (firstNextIndex > mask)
-			firstNextIndex = firstNextIndex & mask;
+		if (firstNextIndex > mask1)
+			firstNextIndex = firstNextIndex & mask1;
 		
-		if (secondNextIndex > mask)
-			secondNextIndex = secondNextIndex & mask;
+		if (secondNextIndex > mask2)
+			secondNextIndex = secondNextIndex & mask2;
 		
 		 firstStartIndex =  firstNextIndex;
 		secondStartIndex = secondNextIndex;
@@ -415,6 +430,10 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 			return (long) Utils.getTupleTimestamp(value);
 		else 
 			return value;
+	}
+	
+	public int getParentQueryId () {
+		return parent.getId();
 	}
 }
 

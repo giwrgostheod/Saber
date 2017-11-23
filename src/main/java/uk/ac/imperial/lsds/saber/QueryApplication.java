@@ -1,5 +1,6 @@
 package uk.ac.imperial.lsds.saber;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -37,6 +38,21 @@ public class QueryApplication {
 	
 	private RESTfulHandler handler = null;
 	
+	private List<Integer> throughputList = null;
+	
+	public QueryApplication (Set<Query> queries, List<Integer> throughputList) {
+		
+		this.queries = queries;
+		
+		numberOfUpstreamQueries = 0;
+		
+		dispatchers = new ITaskDispatcher [1];
+		
+		N = this.queries.size();
+		
+		this.throughputList = throughputList;
+	}
+	
 	public QueryApplication (Set<Query> queries) {
 		
 		this.queries = queries;
@@ -53,11 +69,29 @@ public class QueryApplication {
 		processData (values, values.length);
 	}
 	
+	public void processData (int id, byte [] values) {
+		
+		processData (id, values, values.length);
+	}
+	
 	public void processData (byte [] values, int length) {
 		
 		for (int i = 0; i < dispatchers.length; ++i) {
 			dispatchers[i].dispatch (values, length);
 		}
+	}
+	
+	public void processData (int id, byte [] values, int length) {
+		
+		for (int i = 0; i < dispatchers.length; ++i) {
+			if (dispatchers[i].getParentQueryId() == id)
+				dispatchers[i].dispatch (values, length);
+		}	
+	}	
+	
+	public void processFirstStream (int id, byte [] values) {
+			
+		processFirstStream (id, values, values.length);
 	}
 	
 	public void processFirstStream (byte [] values) {
@@ -71,11 +105,24 @@ public class QueryApplication {
 			dispatchers[i].dispatchToFirstStream (values, length);
 		}
 	}
+					
+	public void processFirstStream (int id, byte [] values, int length) {
+			
+		for (int i = 0; i < dispatchers.length; ++i) {
+			if (i == id)
+				dispatchers[i].dispatchToFirstStream (values, length);
+		} 
+	}
 	
 	public void processSecondStream (byte [] values) {
 		
 		processSecondStream (values, values.length);
 	}
+	
+	public void processSecondStream (int id, byte [] values) {
+			
+		processSecondStream (id, values, values.length);
+	}	
 	
 	public void processSecondStream (byte [] values, int length) {
 		
@@ -83,6 +130,14 @@ public class QueryApplication {
 			dispatchers[i].dispatchToSecondStream (values, length);
 		}
 	}
+	
+	public void processSecondStream (int id, byte [] values, int length) {
+			
+		for (int i = 0; i < dispatchers.length; ++i) {
+				if (i == id)
+					dispatchers[i].dispatchToSecondStream (values, length);
+		}
+	}	
 	
 	public void setup() {
 		
@@ -117,7 +172,7 @@ public class QueryApplication {
 				setDispatcher(q.getTaskDispatcher());
 		}
 		
-		Thread performanceMonitor = new Thread(new PerformanceMonitor(this));
+		Thread performanceMonitor = new Thread(new PerformanceMonitor(this, throughputList));
 		performanceMonitor.setName("Performance monitor");
 		performanceMonitor.start();
 		

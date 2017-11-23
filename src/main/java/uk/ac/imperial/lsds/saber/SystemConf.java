@@ -6,7 +6,7 @@ public class SystemConf {
 
 	public static boolean WWW = false;
 
-	public static String SABER_HOME = "/";
+	public static String SABER_HOME = "/home/george/saber";
 	
 	static {
 		
@@ -36,6 +36,8 @@ public class SystemConf {
 	public static int PIPELINE_DEPTH = 4;
 	
 	public static int CIRCULAR_BUFFER_SIZE = 1073741824;
+	
+	public static int RELATIONAL_TABLE_BUFFER_SIZE = 1048576;
 	
 	public static int UNBOUNDED_BUFFER_SIZE = 1048576;
 	

@@ -847,12 +847,12 @@ public class Aggregation implements IOperatorCode, IAggregateOperator {
 		}
 		
 		/* Set complete windows */
-		System.out.println("Complete windows start at " + buffer.position());
+		//System.out.println("Complete windows start at " + buffer.position());
 		
 		ByteBuffer theTable = windowHashTable.getBuffer();
 		int intermediateTupleSize = windowHashTable.getIntermediateTupleSize();
 		/* Pack the elements of the table */
-		int tupleIndex = 0;
+/*		int tupleIndex = 0;
 		for (int idx = 0; idx < theTable.capacity(); idx += intermediateTupleSize) {
 			if (theTable.get(idx) == 1) {
 				int mark = theTable.get(idx);
@@ -873,7 +873,7 @@ public class Aggregation implements IOperatorCode, IAggregateOperator {
 			}
 			tupleIndex ++;
 		}
-		System.exit(1);
+		System.exit(1);*/
 //		int tupleIndex = 0;
 //		for (int idx = offset; idx < (offset + SystemConf.HASH_TABLE_SIZE); idx += 32) {
 //			int mark = buffer.getInt(idx + 0);

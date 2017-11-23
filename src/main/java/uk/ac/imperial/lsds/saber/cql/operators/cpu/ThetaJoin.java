@@ -101,7 +101,7 @@ public class ThetaJoin implements IOperatorCode {
 				currentTimestamp2 = getTimestamp(batch2, currentIndex2, 0);
 				
 				/* Move in first batch? */
-				if (
+				if ( 
 					(currentTimestamp1 < currentTimestamp2) || 
 					(currentTimestamp1 == currentTimestamp2 && currentIndex2 >= endIndex2)) {
 					
@@ -284,35 +284,35 @@ public class ThetaJoin implements IOperatorCode {
 					batch1.getTaskId(), matched, invoked, selectivity));
 		}
 		
-		/* Print tuples
-		outBuffer.close();
+/*		Print tuples
+		outputBuffer.close();
 		int tid = 1;
-		while (outBuffer.hasRemaining()) {
+		while (outputBuffer.hasRemaining()) {
 		
-			System.out.println(String.format("%03d: %2d,%2d,%2d,%2d,%2d,%2d,%2d | %2d,%2d,%2d,%2d,%2d,%2d,%2d", 
+			System.out.println(String.format("%03d: %2d,%2d,%2d | %2d,%2d,%2d", 
 			tid++,
-			outBuffer.getByteBuffer().getLong(),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getLong(),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt (),
-			outBuffer.getByteBuffer().getInt ()
+		    outputBuffer.getByteBuffer().getLong(),
+			outputBuffer.getByteBuffer().getInt (),
+			outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			outputBuffer.getByteBuffer().getLong(),
+			outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			//outputBuffer.getByteBuffer().getInt (),
+			outputBuffer.getByteBuffer().getInt ()
 			));
-		}
-		*/
+		}*/
+		
 		api.outputWindowBatchResult(batch1);
-		/*
-		System.err.println("Disrupted");
-		System.exit(-1);
-		*/
+	
+/*		System.err.println("Disrupted");
+		System.exit(-1);*/
+		
 	}
 	
 	private long getTimestamp (WindowBatch batch, int index, int attribute) {

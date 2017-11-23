@@ -25,4 +25,6 @@ public interface ITaskDispatcher {
 	public void setAggregateOperator (IAggregateOperator operator);
 
 	public ResultHandler getHandler();
+	
+	public int getParentQueryId();
 }
