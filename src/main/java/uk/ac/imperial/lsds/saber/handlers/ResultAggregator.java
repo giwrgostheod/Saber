@@ -10,6 +10,7 @@ import uk.ac.imperial.lsds.saber.Utils;
 import uk.ac.imperial.lsds.saber.WindowBatch;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 
 public class ResultAggregator {
 	
@@ -71,6 +72,10 @@ public class ResultAggregator {
 	
 	public void setOperator (IAggregateOperator operator) {
 		this.operator = operator;
+	}
+	
+	public void setOperator(IHashJoinOperator operator) {
+		//this.operator = operator;		
 	}
 	
 	public void add (WindowBatch batch) {

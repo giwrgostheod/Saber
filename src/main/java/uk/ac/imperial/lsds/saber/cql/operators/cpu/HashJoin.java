@@ -6,11 +6,15 @@ import uk.ac.imperial.lsds.saber.Utils;
 import uk.ac.imperial.lsds.saber.WindowBatch;
 import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
+import uk.ac.imperial.lsds.saber.buffers.PartialWindowResults;
+import uk.ac.imperial.lsds.saber.buffers.PartialWindowResultsFactory;
 import uk.ac.imperial.lsds.saber.buffers.UnboundedQueryBufferFactory;
 import uk.ac.imperial.lsds.saber.cql.expressions.ExpressionsUtil;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
+import uk.ac.imperial.lsds.saber.processors.ThreadMap;
 import uk.ac.imperial.lsds.saber.tasks.IWindowAPI;
 
 import java.util.List;
@@ -18,7 +22,7 @@ import java.util.List;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
-public class HashJoin implements IOperatorCode {
+public class HashJoin implements IOperatorCode, IHashJoinOperator {
 	
 	private static boolean debug = false;
 	private static boolean monitorSelectivity = false;
@@ -34,6 +38,7 @@ public class HashJoin implements IOperatorCode {
 	
 	private Multimap<Integer,Integer> multimap;
 	private boolean isFirst = true;
+	private boolean processIncremental;
 	
 	public HashJoin(ITupleSchema schema1, ITupleSchema schema2, IPredicate predicate) {
 		
@@ -48,8 +53,6 @@ public class HashJoin implements IOperatorCode {
 	
 	public void processData(WindowBatch batch1, WindowBatch batch2, IWindowAPI api) {
 		
-		int column1 = ((IntColumnReference)predicate.getFirstExpression()).getColumn();
-		int offset1 = schema1.getAttributeOffset(column1);
 		int column2 = ((IntColumnReference)predicate.getSecondExpression()).getColumn();
 		int offset2 = schema2.getAttributeOffset(column2);
 
@@ -57,33 +60,167 @@ public class HashJoin implements IOperatorCode {
 		if (this.isFirst) {
 			createHashTable(batch2, offset2);
 			isFirst = false;
+		}		
+
+		WindowDefinition windowDef1 = batch1.getWindowDefinition();
+		/*WindowDefinition windowDef2 = batch2.getWindowDefinition();*/	
+		
+/*		long currentTimestamp1, startTimestamp1;
+		long currentTimestamp2, startTimestamp2;*/
+
+		processIncremental = (windowDef1.getSlide() < windowDef1.getSize() / 2);
+
+		if (processIncremental) { 
+			processDataPerWindowIncrementally (batch1, batch2, api);
+		} else {
+			processDataPerWindow (batch1, batch2, api);
+		}
+					
+
+		//batch.getBuffer().release();
+		//batch.setSchema(outputSchema);
+		
+		api.outputWindowBatchResult(batch1);
+	}
+	
+	private void processDataPerWindow(WindowBatch batch1, WindowBatch batch2, IWindowAPI api) {
+		
+		IQueryBuffer outputBuffer = UnboundedQueryBufferFactory.newInstance();
+		outputBuffer = computeOutputBuffer(batch1, batch1.getBufferStartPointer(), batch1.getBufferEndPointer(), batch2, outputBuffer);
+				
+		batch1.getBuffer().release();
+		// buffer2.release();
+
+		batch1.setBuffer(outputBuffer);
+		batch1.setSchema(outputSchema);
+	}
+	
+	private void processDataPerWindowIncrementally(WindowBatch batch1, WindowBatch batch2, IWindowAPI api) {
+		int workerId = ThreadMap.getInstance().get(Thread.currentThread().getId());
+		
+		int [] startP = batch1.getWindowStartPointers();
+		int []   endP = batch1.getWindowEndPointers();
+		
+		ITupleSchema inputSchema = batch1.getSchema();
+		
+		int numberOfAttributes = inputSchema.numberOfAttributes();
+		
+		PartialWindowResults  closingWindows = PartialWindowResultsFactory.newInstance (workerId);
+		PartialWindowResults  pendingWindows = PartialWindowResultsFactory.newInstance (workerId);
+		PartialWindowResults completeWindows = PartialWindowResultsFactory.newInstance (workerId);
+		PartialWindowResults  openingWindows = PartialWindowResultsFactory.newInstance (workerId);
+		
+		IQueryBuffer outputBuffer = null;
+		
+		/* Current window start and end pointers */ 
+		int start, end;
+		/* Previous window start and end pointers */
+		int _start = -1;
+		int   _end = -1;
+				
+		for (int currentWindow = 0; currentWindow < startP.length; ++currentWindow) {
+			if (currentWindow > batch1.getLastWindowIndex())
+				break;
+			
+			start = startP [currentWindow];
+			end   = endP   [currentWindow];
+			
+			/* Check start and end pointers */
+			if (start < 0 && end < 0) {
+				start = batch1.getBufferStartPointer();
+				end = batch1.getBufferEndPointer();
+				if (batch1.getStreamStartPointer() == 0) {
+					/* Treat this window as opening; there is no previous batch to open it */
+					outputBuffer = openingWindows.getBuffer();
+					openingWindows.increment();					
+				} else {
+					/* This is a pending window; compute a pending window once */
+					if (pendingWindows.numberOfWindows() > 0)
+						continue;
+					outputBuffer = pendingWindows.getBuffer();
+					pendingWindows.increment();
+				}
+			} else if (start < 0) {
+				outputBuffer = closingWindows.getBuffer();
+				closingWindows.increment();
+				start = batch1.getBufferStartPointer();
+			} else if (end < 0) {
+				outputBuffer = openingWindows.getBuffer();
+				openingWindows.increment();
+				end = batch1.getBufferEndPointer();
+			} else {
+				if (start == end) /* Empty window */
+					continue;
+				outputBuffer = completeWindows.getBuffer();
+				completeWindows.increment();
+			}
+			/* If the window is empty, skip it */
+			if (start == -1)
+				continue;
+			
+			if (start == end) {
+				/* Store "null" (zero-valued) tuple in output buffer */
+				outputBuffer.putLong(0L);
+				for (int i = 0; i < numberOfAttributes; ++i) {
+					outputBuffer.putInt(0);
+				}				
+				/* Move to next window */
+				continue;
+			}
+			
+			//float [] values = tl_values.get(); 
+			//int [] counts = tl_counts.get();
+			
+			if (_start >= 0) {
+				/* Process tuples in current window that have not been in the previous window */
+				outputBuffer = computeOutputBuffer(batch1, _end, end, batch2, outputBuffer);
+			} else {
+				/* Process tuples in current window */
+				outputBuffer = computeOutputBuffer(batch1, start, end, batch2, outputBuffer);
+			}
+			
+			/* Process tuples in previous window that are not in current window */
+			if (_start >= 0) {
+				outputBuffer = computeOutputBuffer(batch1, _start, start, batch2, outputBuffer);
+			}
+	
+			
+			/* Continue with the next window */
+			_start = start;
+			_end = end;
 		}
 		
-		int currentIndex1 = batch1.getBufferStartPointer();
+		/* At the end of processing, set window batch accordingly */
+		batch1.setClosingWindows  ( closingWindows);
+		batch1.setPendingWindows  ( pendingWindows);
+		batch1.setCompleteWindows (completeWindows);
+		batch1.setOpeningWindows  ( openingWindows);
+		
+		
+		batch1.getBuffer().release();
+
+		batch1.setBuffer(outputBuffer);
+		batch1.setSchema(outputSchema);
+	}
+	
+	public IQueryBuffer computeOutputBuffer (WindowBatch batch1, int ptr1, int ptr2, WindowBatch batch2, IQueryBuffer outputBuffer) {
+		
+		int column1 = ((IntColumnReference)predicate.getFirstExpression()).getColumn();
+		int offset1 = schema1.getAttributeOffset(column1);
+		int currentIndex1 =  ptr1; // batch1.getBufferStartPointer();
 		int currentIndex2 = batch2.getBufferStartPointer();
 
-		int endIndex1 = batch1.getBufferEndPointer() + 32;
-		int endIndex2 = batch2.getBufferEndPointer() + 32;
-		
-/*		int currentWindowStart1 = currentIndex1;
-		int currentWindowEnd1   = currentIndex1;
-		
-		int currentWindowStart2 = currentIndex2;
-		int currentWindowEnd2   = currentIndex2;*/
+		int endIndex1 = ptr2 + 32;// batch1.getBufferEndPointer() + 32;
+		int endIndex2 = batch2.getBufferEndPointer() + 32;		
 		
 		IQueryBuffer buffer1 = batch1.getBuffer();
 		IQueryBuffer buffer2 = batch2.getBuffer();
 		
-		IQueryBuffer outputBuffer = UnboundedQueryBufferFactory.newInstance();
-
 		ITupleSchema schema1 = batch1.getSchema();
 		ITupleSchema schema2 = batch2.getSchema();
 
 		int tupleSize1 = schema1.getTupleSize();
 		int tupleSize2 = schema2.getTupleSize();
-
-/*		WindowDefinition windowDef1 = batch1.getWindowDefinition();
-		WindowDefinition windowDef2 = batch2.getWindowDefinition();*/
 		
 		if (debug) {
 			System.out.println(
@@ -101,9 +238,6 @@ public class HashJoin implements IOperatorCode {
 			);
 		}
 		
-/*		long currentTimestamp1, startTimestamp1;
-		long currentTimestamp2, startTimestamp2;*/
-		
 		if (monitorSelectivity)
 			invoked = matched = 0L;
 		
@@ -112,24 +246,25 @@ public class HashJoin implements IOperatorCode {
 					
 			int value;
 			List<Integer> relationalBufferPointers;
-			for (int pointer = batch1.getBufferStartPointer(); pointer < batch1.getBufferEndPointer(); pointer += tupleSize1) {
+			for (int pointer = ptr1; pointer < ptr2; pointer += tupleSize1) {
+				
+				if (monitorSelectivity)
+					invoked ++;
+				
 				value = buffer1.getInt(pointer + offset1);
+				
 				if (multimap.containsKey(value)) {
 					relationalBufferPointers = (List<Integer>)multimap.get(value);
 					for (int p: relationalBufferPointers) {
 						/* Write tuple to result buffer */
 						buffer1.appendBytesTo(pointer, tupleSize1, outputBuffer);
 						buffer2.appendBytesTo(p, tupleSize2, outputBuffer);
+						if (monitorSelectivity)
+							matched ++;
 					}
 				}
 			}
 		}
-				
-		buffer1.release();
-		// buffer2.release();
-
-		batch1.setBuffer(outputBuffer);
-		batch1.setSchema(outputSchema);
 		
 		if (debug) 
 			System.out.println("[DBG] output buffer position is " + outputBuffer.position());
@@ -164,13 +299,11 @@ public class HashJoin implements IOperatorCode {
 			//outputBuffer.getByteBuffer().getInt (),
 			outputBuffer.getByteBuffer().getInt ()
 			));
-		}*/
-		
-		//Don't comment out
-		api.outputWindowBatchResult(batch1);
-	
-/*		System.err.println("Disrupted");
+		}
+		System.err.println("Disrupted");
 		System.exit(-1);*/
+		
+		return outputBuffer;
 	}
 	
 	@SuppressWarnings("unused")
@@ -215,4 +348,10 @@ public class HashJoin implements IOperatorCode {
 			i += tupleSize;
 		}		
 	}
+
+	public ITupleSchema getOutputSchema() {
+		return outputSchema;
+	}
+	
+	
 }

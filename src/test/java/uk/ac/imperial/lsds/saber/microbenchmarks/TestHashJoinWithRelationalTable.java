@@ -16,9 +16,9 @@ import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
 import uk.ac.imperial.lsds.saber.WindowDefinition.WindowType;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.HashJoin;
-import uk.ac.imperial.lsds.saber.cql.operators.cpu.ThetaJoin;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.ThetaJoinKernel;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
@@ -178,6 +178,12 @@ public class TestHashJoinWithRelationalTable {
 		QueryApplication application = new QueryApplication(queries);
 		
 		application.setup();
+		
+		/* The path is query -> dispatcher -> handler -> aggregator */
+		if (SystemConf.CPU)
+			query.setHashJoinOperator((IHashJoinOperator) cpuCode);
+		else
+			query.setHashJoinOperator((IHashJoinOperator) gpuCode);
 		
 		/* Set up the input streams */
 		

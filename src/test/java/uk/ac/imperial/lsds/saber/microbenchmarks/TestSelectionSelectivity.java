@@ -33,11 +33,11 @@ public class TestSelectionSelectivity {
 		int numberOfThreads = 1;
 		int batchSize = 1048576;
 		WindowType windowType = WindowType.ROW_BASED;
-		int windowRange = 1;
-		int windowSlide = 1;
-		int numberOfAttributes = 6;
+		int windowRange = 1024;
+		int windowSlide = 1024;
+		int numberOfAttributes = 2;
 		int selectivity = 1;
-		int tuplesPerInsert = 32768;
+		int tuplesPerInsert = 64;
 		
 		/* Parse command line arguments */
 		int i, j;

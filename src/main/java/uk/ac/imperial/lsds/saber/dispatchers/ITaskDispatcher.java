@@ -2,6 +2,7 @@ package uk.ac.imperial.lsds.saber.dispatchers;
 
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 
 public interface ITaskDispatcher {
@@ -23,6 +24,8 @@ public interface ITaskDispatcher {
 	public long getBytesGenerated();
 
 	public void setAggregateOperator (IAggregateOperator operator);
+	
+	public void setHashJoinOperator(IHashJoinOperator operator);
 
 	public ResultHandler getHandler();
 	

@@ -11,6 +11,7 @@ import uk.ac.imperial.lsds.saber.buffers.CircularQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 import uk.ac.imperial.lsds.saber.tasks.Task;
 import uk.ac.imperial.lsds.saber.tasks.TaskFactory;
@@ -155,6 +156,10 @@ public class TaskDispatcher implements ITaskDispatcher {
 
 	public void setAggregateOperator (IAggregateOperator operator) {
 		handler.setAggregateOperator(operator);
+	}
+	
+	public void setHashJoinOperator (IHashJoinOperator operator) {
+		handler.setHashJoinOperator(operator);
 	}
 	
 	private void assemble (int index, int length) {

@@ -11,6 +11,7 @@ import uk.ac.imperial.lsds.saber.buffers.CircularQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
 import uk.ac.imperial.lsds.saber.tasks.Task;
@@ -176,6 +177,11 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	public void setAggregateOperator (IAggregateOperator operator) {
 		throw new IllegalStateException ("error: cannot set aggregate operator of a join task dispatcher");
 	}
+
+	public void setHashJoinOperator(IHashJoinOperator operator) {
+		throw new IllegalStateException ("error: cannot set this type of operator with a join task dispatcher");
+		
+	}	
 	
 	private void assembleFirst (int idx, int length) {
 		
