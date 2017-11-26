@@ -16,7 +16,7 @@ import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
 import uk.ac.imperial.lsds.saber.WindowDefinition.WindowType;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
-import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.HashJoin;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.ThetaJoinKernel;
@@ -34,7 +34,7 @@ public class TestHashJoinWithRelationalTable {
 		int batchSize = 1048576;
 		WindowType windowType1 = WindowType.ROW_BASED;
 		int windowRange1 = 1024;
-		int windowSlide1 = 1024;
+		int windowSlide1 = 256;
 		int numberOfAttributes1 = 2;
 		WindowType windowType2 = WindowType.ROW_BASED;
 		int windowRange2 = 1024;
@@ -181,9 +181,9 @@ public class TestHashJoinWithRelationalTable {
 		
 		/* The path is query -> dispatcher -> handler -> aggregator */
 		if (SystemConf.CPU)
-			query.setHashJoinOperator((IHashJoinOperator) cpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode, true);
 		else
-			query.setHashJoinOperator((IHashJoinOperator) gpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, true);
 		
 		/* Set up the input streams */
 		

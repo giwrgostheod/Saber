@@ -6,8 +6,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 import uk.ac.imperial.lsds.saber.Query;
 import uk.ac.imperial.lsds.saber.SystemConf;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
-import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 
 public class ResultHandler {
 	
@@ -84,15 +83,9 @@ public class ResultHandler {
 		totalOutputBytes += ((long) bytes);
 	}
 	
-	public void setAggregateOperator (IAggregateOperator operator) {
+	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin) {
 		System.out.println("[DBG] set aggregate operator");
-		resultAggregator = new ResultAggregator (numberOfSlots, freeBuffer1, freeBuffer2, query, this);
+		resultAggregator = new ResultAggregator (numberOfSlots, freeBuffer1, freeBuffer2, query, this, isHashJoin);
 		resultAggregator.setOperator (operator);
-	}
-	
-	public void setHashJoinOperator (IHashJoinOperator operator) {
-		System.out.println("[DBG] set hash join operator");
-		resultAggregator = new ResultAggregator (numberOfSlots, freeBuffer1, freeBuffer2, query, this);
-		resultAggregator.setOperator (operator);
-	}
+	}	
 }

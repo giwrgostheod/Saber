@@ -20,7 +20,7 @@ import uk.ac.imperial.lsds.saber.cql.expressions.Expression;
 import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.AggregationKernel;
@@ -177,9 +177,9 @@ public class SyntheticReduction {
 		
 		/* The path is query -> dispatcher -> handler -> aggregator */
 		if (SystemConf.CPU)
-			query.setAggregateOperator((IAggregateOperator) cpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode, false);
 		else
-			query.setAggregateOperator((IAggregateOperator) gpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, false);
 		
 		/* Set up the input stream */
 		

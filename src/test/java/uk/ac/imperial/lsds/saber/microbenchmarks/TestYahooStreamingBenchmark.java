@@ -16,18 +16,19 @@ import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
 import uk.ac.imperial.lsds.saber.WindowDefinition.WindowType;
 import uk.ac.imperial.lsds.saber.cql.expressions.Expression;
+import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntConstant;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongColumnReference;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
+import uk.ac.imperial.lsds.saber.cql.operators.cpu.HashJoin;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Projection;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Selection;
-import uk.ac.imperial.lsds.saber.cql.operators.cpu.ThetaJoin;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.AggregationKernel;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.ProjectionKernel;
-import uk.ac.imperial.lsds.saber.cql.operators.gpu.ReductionKernel;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.SelectionKernel;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.ThetaJoinKernel;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
@@ -112,7 +113,7 @@ public class TestYahooStreamingBenchmark {
 		int windowSlide2 = 1024;
 		int numberOfAttributes2 = 6;
 		int selectivity = 1;
-		int tuplesPerInsert = 128;		
+		int tuplesPerInsert = 100;		
 		int i;
 		
 		SystemConf.CIRCULAR_BUFFER_SIZE = 32 * 1048576;
@@ -133,7 +134,7 @@ public class TestYahooStreamingBenchmark {
 		// Create input schema.
 		ITupleSchema  inputSchema = createInputStreamSchema();
 		/* Reset tuple size */
-		int tupleSize = inputSchema.getTupleSize();
+		int inputStreaTupleSize = inputSchema.getTupleSize();
 		
 		
 		
@@ -171,7 +172,8 @@ public class TestYahooStreamingBenchmark {
 		QueryOperator projectOperator = new QueryOperator (cpuCode, gpuCode);
 		operators = new HashSet<QueryOperator>();			
 		operators.add(projectOperator);
-		Query projectQuery = new Query (0, operators, projectSchema, projectWindow, null, null, queryConf, timestampReference);						
+		Query projectQuery = new Query (1, operators, projectSchema, projectWindow, null, null, queryConf, timestampReference);						
+		queries.add(projectQuery);
 
 		filterQuery.connectTo(projectQuery);
 		// -----------------------------
@@ -183,87 +185,93 @@ public class TestYahooStreamingBenchmark {
 						
 		ITupleSchema joinRelationalSchema = createCampaignsSchema();
 		/* Reset tuple size */
-		int tupleSize1 = joinRelationalSchema.getTupleSize();
+		int campaignsTupleSize = joinRelationalSchema.getTupleSize();
 		
 		// set the size of the relational table
-		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = tupleSize1 * tuplesPerInsert;
+		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = campaignsTupleSize * tuplesPerInsert;
 		// set the window on the relational table correctly
 		// WindowDefinition window1 = new WindowDefinition (windowType1, windowRange1, windowSlide1);
-		WindowDefinition window1 = new WindowDefinition (WindowType.ROW_BASED, tuplesPerInsert, tuplesPerInsert);
+		WindowDefinition windowRelational = new WindowDefinition (WindowType.ROW_BASED, tuplesPerInsert, tuplesPerInsert);
 		
 		
 		ITupleSchema joinStreamSchema = projectQuery.getSchema();
 		/* Reset tuple size */
-		int tupleSize2 = joinStreamSchema.getTupleSize();
-		WindowDefinition window2 = new WindowDefinition (windowType2, windowRange2, windowSlide2);
+		int streamTupleSize = joinStreamSchema.getTupleSize();
+		WindowDefinition windowStream = new WindowDefinition (windowType2, windowRange2, windowSlide2);
 
 		
 		predicate =  new IntComparisonPredicate
 				(IntComparisonPredicate.EQUAL_OP , new IntColumnReference(1), new IntColumnReference(1));
 		
-		cpuCode = new ThetaJoin (joinRelationalSchema, joinStreamSchema, predicate);
-		gpuCode = new ThetaJoinKernel (joinRelationalSchema, joinStreamSchema, predicate, null, batchSize, 1048576);
 		
+		cpuCode = new HashJoin (joinStreamSchema, joinRelationalSchema, predicate); //ThetaJoin (joinRelationalSchema, joinStreamSchema, predicate);
+		gpuCode = new ThetaJoinKernel (joinStreamSchema, joinRelationalSchema, predicate, null, batchSize, 1048576);
 		QueryOperator joinOperator = new QueryOperator (cpuCode, gpuCode);
-		
-		operators = new HashSet<QueryOperator>();
-		operators.add(joinOperator);
+		operators = new HashSet<QueryOperator>();			
+		operators.add(joinOperator);							
 			
 		// the Boolean parameters are required to define if a relational table is used or not
-		Query joinQuery = new Query (0, operators, joinRelationalSchema, window1, true, joinStreamSchema, window2, false, queryConf, timestampReference);
-				
+		Query joinQuery = new Query (2, operators, joinStreamSchema, windowStream, false, joinRelationalSchema, windowRelational, true, queryConf, timestampReference);
+
 		queries.add(joinQuery);
-		joinQuery.connectTo(filterQuery);
+		joinQuery.connectTo(filterQuery);			
 		// -----------------------------
 
+		
 		
 		// -----------------------------------
 		// Aggregate (count("*") as count, max(event_time) as 'lastUpdate) 
 		// Group By Campaign_ID with 10 seconds tumbling window
 		WindowDefinition aggregateWindow = new WindowDefinition (WindowType.RANGE_BASED , 10000, 10000);	
 		ITupleSchema aggregateSchema = joinQuery.getSchema();
-		tupleSize = aggregateSchema.getTupleSize();
+		int aggregateStreamTupleSize = aggregateSchema.getTupleSize();
 		
 		AggregationType [] aggregationTypes = new AggregationType [2];
 
 		System.out.println("[DBG] aggregation type is COUNT(*)" );
 		aggregationTypes[0] = AggregationType.CNT;
 		System.out.println("[DBG] aggregation type is MAX(0)" );
-		aggregationTypes[2] = AggregationType.MAX;
+		aggregationTypes[1] = AggregationType.MAX;
 		
-		LongColumnReference [] aggregationAttributes = new LongColumnReference [2];
+		FloatColumnReference[] aggregationAttributes = new FloatColumnReference [2];
 		for (i = 0; i < 2; ++i)
-			aggregationAttributes[i] = new LongColumnReference(0);
+			aggregationAttributes[i] = new FloatColumnReference(0);
 		
 		Expression [] groupByAttributes = new Expression [] {new IntColumnReference(2)};
 		
 		//fix!!
-		
-		//cpuCode = new Aggregation (aggregateWindow)
-		System.out.println(cpuCode);
-		//gpuCode = new AggregationKernel (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes, aggregateSchema, batchSize);
+		cpuCode = new Aggregation (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes);
+		gpuCode = new AggregationKernel (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes, aggregateSchema, batchSize);
 		
 		QueryOperator aggregateOperator = new QueryOperator (cpuCode, gpuCode);
 		
 		operators = new HashSet<QueryOperator>();
 		operators.add(aggregateOperator);
 		
-		Query aggregateQuery = new Query (0, operators, aggregateSchema, aggregateWindow, null, null, queryConf, timestampReference);
-		
-		queries = new HashSet<Query>();
+		Query aggregateQuery = new Query (3, operators, aggregateSchema, aggregateWindow, null, null, queryConf, timestampReference);
+				
 		queries.add(aggregateQuery);
 		
-		
+		aggregateQuery.connectTo(joinQuery);
 		// --------------------------
 		// Set up application.
 		QueryApplication application = new QueryApplication(queries);
 		
 		application.setup();
 		
+		
+		if (SystemConf.CPU) {
+			joinQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode, true);
+			aggregateQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode, false);
+		} else {
+			joinQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, true);
+			aggregateQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, false);
+		}
+		
 		/* Set up the input streams */
 		
-		byte [] data1 = new byte [tupleSize1 * tuplesPerInsert];
-		byte [] data2 = new byte [tupleSize2 * tuplesPerInsert];
+		byte [] data1 = new byte [inputStreaTupleSize * tuplesPerInsert];
+		byte [] data2 = new byte [campaignsTupleSize * tuplesPerInsert];
 		
 		ByteBuffer b1 = ByteBuffer.wrap(data1);
 		ByteBuffer b2 = ByteBuffer.wrap(data2);
@@ -275,8 +283,7 @@ public class TestYahooStreamingBenchmark {
 		while (b1.hasRemaining()) {
 			timestamp ++;
 			b1.putLong (timestamp);
-			b1.putInt(value);
-			value = (value + 1) % 100; 
+			b1.putInt(selectivity);			
 			for (i = 1; i < numberOfAttributes1; i++)
 				b1.putInt(1);
 		}
@@ -284,10 +291,14 @@ public class TestYahooStreamingBenchmark {
 		timestamp = 0;
 		while (b2.hasRemaining()) {
 			timestamp ++;
+			value = (value + 1) % 100; 
 			b2.putLong (timestamp);
-			b2.putInt(selectivity);
-			for (i = 1; i < numberOfAttributes2; i++)
+			if (value == 4 || value == 17)
 				b2.putInt(1);
+			else
+				b2.putInt(value);
+			for (i = 1; i < numberOfAttributes2; i++)
+				b2.putInt(2);
 		}
 		
 		/* Reset timestamp */
@@ -298,10 +309,10 @@ public class TestYahooStreamingBenchmark {
 		}
 		
 		try {
+			application.processSecondStream  (joinQuery.getId(), data2);
 			while (true) {	
 	            // Thread.sleep(10);
-				application.processFirstStream  (data1);
-				application.processSecondStream (data2);
+				application.processFirstStream (data1);				
 				if (SystemConf.LATENCY_ON)
 					b1.putLong(0, Utils.pack((long) ((System.nanoTime() - timestampReference) / 1000L), b1.getLong(0)));
 			}

@@ -2,8 +2,7 @@ package uk.ac.imperial.lsds.saber;
 
 import java.util.Set;
 
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
-import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.dispatchers.ITaskDispatcher;
 import uk.ac.imperial.lsds.saber.dispatchers.JoinTaskDispatcher;
 import uk.ac.imperial.lsds.saber.dispatchers.TaskDispatcher;
@@ -326,11 +325,7 @@ public class Query {
 		return numberOfDownstreamQueries;
 	}
 	
-	public void setAggregateOperator (IAggregateOperator operator) {
-		dispatcher.setAggregateOperator (operator);
-	}
-	
-	public void setHashJoinOperator (IHashJoinOperator operator) {
-		dispatcher.setHashJoinOperator (operator);
-	}
+	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin) {
+		dispatcher.setFragmentWindowsOperator (operator, isHashJoin);
+	}	
 }

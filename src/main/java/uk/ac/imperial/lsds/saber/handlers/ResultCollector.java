@@ -24,7 +24,6 @@ public class ResultCollector {
 /*		try {
 			pw = new PrintWriter(new FileOutputStream("/home/george/Desktop/Jupyter Notebook/latency.txt", false));
 		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}*/
 	}

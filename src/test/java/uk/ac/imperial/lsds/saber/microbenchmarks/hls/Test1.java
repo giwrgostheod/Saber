@@ -23,7 +23,7 @@ import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatExpression;
 import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatMultiplication;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongColumnReference;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.NoOp;
@@ -209,9 +209,9 @@ public class Test1 {
 		
 		/* The path is query -> dispatcher -> handler -> aggregator */
 		if (SystemConf.CPU)
-			query2.setAggregateOperator((IAggregateOperator) cpuCode2);
+			query2.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode2, false);
 		else
-			query2.setAggregateOperator((IAggregateOperator) gpuCode2);
+			query2.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode2, false);
 		
 		/* Set up the input stream */
 		

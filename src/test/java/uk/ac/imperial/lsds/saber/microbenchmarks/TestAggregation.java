@@ -20,7 +20,7 @@ import uk.ac.imperial.lsds.saber.cql.expressions.Expression;
 import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.AggregationKernel;
@@ -40,8 +40,8 @@ public class TestAggregation {
 		int windowSlide = 1024;
 		int numberOfAttributes = 6;
 		String aggregateExpression = "cnt,sum";
-		int numberOfGroups = 8;
-		int tuplesPerInsert = 32768;
+		int numberOfGroups = 2;
+		int tuplesPerInsert = 64;
 		
 		/* Parse command line arguments */
 		int i, j;
@@ -94,7 +94,7 @@ public class TestAggregation {
 		
 		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;
 		
-		SystemConf.PARTIAL_WINDOWS = 64; // 32768;
+		SystemConf.PARTIAL_WINDOWS = 1048576;
 		SystemConf.HASH_TABLE_SIZE = 32768;
 		
 		SystemConf.UNBOUNDED_BUFFER_SIZE = 2 * 1048576;
@@ -182,9 +182,9 @@ public class TestAggregation {
 		
 		/* The path is query -> dispatcher -> handler -> aggregator */
 		if (SystemConf.CPU)
-			query.setAggregateOperator((IAggregateOperator) cpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) cpuCode, false);
 		else
-			query.setAggregateOperator((IAggregateOperator) gpuCode);
+			query.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, false);
 		
 		/* Set up the input stream */
 		

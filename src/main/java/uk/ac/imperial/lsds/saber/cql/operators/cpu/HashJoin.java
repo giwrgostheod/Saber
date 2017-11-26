@@ -11,7 +11,8 @@ import uk.ac.imperial.lsds.saber.buffers.PartialWindowResultsFactory;
 import uk.ac.imperial.lsds.saber.buffers.UnboundedQueryBufferFactory;
 import uk.ac.imperial.lsds.saber.cql.expressions.ExpressionsUtil;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
-import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.processors.ThreadMap;
@@ -22,7 +23,7 @@ import java.util.List;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
-public class HashJoin implements IOperatorCode, IHashJoinOperator {
+public class HashJoin implements IOperatorCode, IFragmentWindowsOperator {
 	
 	private static boolean debug = false;
 	private static boolean monitorSelectivity = false;
@@ -52,13 +53,15 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 	}
 	
 	public void processData(WindowBatch batch1, WindowBatch batch2, IWindowAPI api) {
+
+		batch1.initPartialWindowPointers();
 		
 		int column2 = ((IntColumnReference)predicate.getSecondExpression()).getColumn();
 		int offset2 = schema2.getAttributeOffset(column2);
 
 		// create hash table the first time only for the first batch
 		if (this.isFirst) {
-			createHashTable(batch2, offset2);
+			createRelationalHashTable(batch2, offset2);
 			isFirst = false;
 		}		
 
@@ -67,7 +70,7 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 		
 /*		long currentTimestamp1, startTimestamp1;
 		long currentTimestamp2, startTimestamp2;*/
-
+		
 		processIncremental = (windowDef1.getSlide() < windowDef1.getSize() / 2);
 
 		if (processIncremental) { 
@@ -76,7 +79,6 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 			processDataPerWindow (batch1, batch2, api);
 		}
 					
-
 		//batch.getBuffer().release();
 		//batch.setSchema(outputSchema);
 		
@@ -99,11 +101,9 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 		int workerId = ThreadMap.getInstance().get(Thread.currentThread().getId());
 		
 		int [] startP = batch1.getWindowStartPointers();
-		int []   endP = batch1.getWindowEndPointers();
+		int []   endP = batch1.getWindowEndPointers();		
 		
-		ITupleSchema inputSchema = batch1.getSchema();
-		
-		int numberOfAttributes = inputSchema.numberOfAttributes();
+		int numberOfAttributes = schema1.numberOfAttributes();
 		
 		PartialWindowResults  closingWindows = PartialWindowResultsFactory.newInstance (workerId);
 		PartialWindowResults  pendingWindows = PartialWindowResultsFactory.newInstance (workerId);
@@ -334,7 +334,7 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 		throw new UnsupportedOperationException("error: `setup` method is applicable only to GPU operators");
 	}
 	
-	public void createHashTable(WindowBatch batch, int offset) {
+	public void createRelationalHashTable(WindowBatch batch, int offset) {
 		
 		this.multimap = ArrayListMultimap.create();		
 		IQueryBuffer buffer = batch.getBuffer();		
@@ -351,6 +351,34 @@ public class HashJoin implements IOperatorCode, IHashJoinOperator {
 
 	public ITupleSchema getOutputSchema() {
 		return outputSchema;
+	}
+
+	public boolean hasGroupBy() {
+		return false;
+	}
+
+	public int getKeyLength() {
+		return 0;
+	}
+
+	public int getValueLength() {
+		return 0;
+	}
+
+	public int numberOfValues() {
+		return schema1.numberOfAttributes();
+	}
+
+	public AggregationType getAggregationType() {
+		return null;
+	}
+
+	public AggregationType getAggregationType(int idx) {
+		return null;
+	}
+
+	public boolean isHashJoin() {
+		return true;
 	}
 	
 	

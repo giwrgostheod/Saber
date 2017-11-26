@@ -21,14 +21,14 @@ import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntExpression;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongExpression;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.code.generators.KernelGenerator;
 import uk.ac.imperial.lsds.saber.devices.TheGPU;
 import uk.ac.imperial.lsds.saber.processors.ThreadMap;
 import uk.ac.imperial.lsds.saber.tasks.IWindowAPI;
 
-public class AggregationKernel implements IOperatorCode, IAggregateOperator {
+public class AggregationKernel implements IOperatorCode, IFragmentWindowsOperator {
 	
 	private static final boolean debug = false;
 	
@@ -434,5 +434,13 @@ public class AggregationKernel implements IOperatorCode, IAggregateOperator {
 	
 	public void processData (WindowBatch first, WindowBatch second, IWindowAPI api) {
 		throw new UnsupportedOperationException("error: operator does not operate on two streams");
+	}
+
+	public void createRelationalHashTable(WindowBatch batch, int offset) {
+		throw new UnsupportedOperationException("error: `createRelationalHashTable` method is applicable only to HashJoin operators");
+	}
+
+	public boolean isHashJoin() {
+		return false;
 	}
 }

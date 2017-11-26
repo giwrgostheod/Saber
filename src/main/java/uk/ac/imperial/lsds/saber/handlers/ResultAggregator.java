@@ -9,8 +9,7 @@ import uk.ac.imperial.lsds.saber.SystemConf;
 import uk.ac.imperial.lsds.saber.Utils;
 import uk.ac.imperial.lsds.saber.WindowBatch;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
-import uk.ac.imperial.lsds.saber.cql.operators.IHashJoinOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 
 public class ResultAggregator {
 	
@@ -37,13 +36,13 @@ public class ResultAggregator {
 	// Lock lock;
 	Semaphore lock;
 	
-	IAggregateOperator operator = null;
+	IFragmentWindowsOperator operator = null;
 	
 	/* Sentinel pointers */
 	int nextToAggregate;
 	int nextToForward;
 	
-	public ResultAggregator (int size, IQueryBuffer freeBuffer1, IQueryBuffer freeBuffer2, Query query, ResultHandler handler) {
+	public ResultAggregator (int size, IQueryBuffer freeBuffer1, IQueryBuffer freeBuffer2, Query query, ResultHandler handler, boolean isHashJoin) {
 		this.size = size;
 		this.freeBuffer1 = freeBuffer1;
 		this.freeBuffer2 = freeBuffer2;
@@ -55,7 +54,7 @@ public class ResultAggregator {
 		
 		for (int i = 0, j = i - 1; i < size; i++, j++) {
 			slots.set(i, FREE);
-			nodes[i] = new PartialResultSlot (i);
+			nodes[i] = new PartialResultSlot (i, isHashJoin);
 			if (j >= 0)
 				nodes[j].connectTo(nodes[i]);
 		}
@@ -70,13 +69,9 @@ public class ResultAggregator {
 		operator = null;
 	}
 	
-	public void setOperator (IAggregateOperator operator) {
+	public void setOperator (IFragmentWindowsOperator operator) {
 		this.operator = operator;
-	}
-	
-	public void setOperator(IHashJoinOperator operator) {
-		//this.operator = operator;		
-	}
+	}	
 	
 	public void add (WindowBatch batch) {
 		

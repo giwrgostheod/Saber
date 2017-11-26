@@ -19,12 +19,12 @@ import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntExpression;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongExpression;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.processors.ThreadMap;
 import uk.ac.imperial.lsds.saber.tasks.IWindowAPI;
 
-public class Aggregation implements IOperatorCode, IAggregateOperator {
+public class Aggregation implements IOperatorCode, IFragmentWindowsOperator {
 	
 	private static final boolean debug = false;
 	
@@ -1185,5 +1185,14 @@ public class Aggregation implements IOperatorCode, IAggregateOperator {
 	public void setup() {
 		
 		throw new UnsupportedOperationException("error: `setup` method is applicable only to GPU operators");
+	}
+
+	public void createRelationalHashTable(WindowBatch batch, int offset) {
+		
+		throw new UnsupportedOperationException("error: `createRelationalHashTable` method is applicable only to HashJoin operators");
+	}
+
+	public boolean isHashJoin() {
+		return false;
 	}
 }

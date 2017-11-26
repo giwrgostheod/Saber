@@ -8,7 +8,7 @@ import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.PartialWindowResults;
 import uk.ac.imperial.lsds.saber.buffers.WindowHashTableWrapper;
 import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
-import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
 
 public class PartialResultSlot {
 	
@@ -27,7 +27,7 @@ public class PartialResultSlot {
 	
 	PartialWindowResults closingWindows, pendingWindows, openingWindows, completeWindows;
 	
-	ByteBuffer w3;
+	ByteBuffer w3, joinWindows;
 	
 	WindowHashTableWrapper windowHashTable;
 	WindowHashTableWrapper mergedHashTable;
@@ -35,7 +35,7 @@ public class PartialResultSlot {
 	boolean [] b2found;
 	boolean [] w3found;
 	
-	public PartialResultSlot (int index) {
+	public PartialResultSlot (int index, boolean isHashJoin) {
 		
 		this.index = index;
 		
@@ -51,16 +51,20 @@ public class PartialResultSlot {
 		/* Initialize windows */
 		closingWindows = openingWindows = pendingWindows = completeWindows = null;
 		
-		w3 = ByteBuffer.allocate(SystemConf.HASH_TABLE_SIZE);
+		if (!isHashJoin) {
+			w3 = ByteBuffer.allocate(SystemConf.HASH_TABLE_SIZE);
 		
-		windowHashTable = new WindowHashTableWrapper ();
-		mergedHashTable = new WindowHashTableWrapper ();
+			windowHashTable = new WindowHashTableWrapper ();
+			mergedHashTable = new WindowHashTableWrapper ();
+			
+			b2found = new boolean[1];
+			b2found[0] = false;
+			
+			w3found = new boolean[1];
+			w3found[0] = false;
+		} else // change the size
+			joinWindows = ByteBuffer.allocate(SystemConf.HASH_TABLE_SIZE);
 		
-		b2found = new boolean[1];
-		b2found[0] = false;
-		
-		w3found = new boolean[1];
-		w3found[0] = false;
 	}
 	
 	public void connectTo (PartialResultSlot next) {
@@ -102,7 +106,7 @@ public class PartialResultSlot {
 	 * Aggregate this node's opening windows with node p's closing or pending windows. The output of this 
 	 * operation will always produce complete or opening windows - never pending and never closing ones.
 	 */
-	public void aggregate (PartialResultSlot p, IAggregateOperator operator) {
+	public void aggregate (PartialResultSlot p, IFragmentWindowsOperator operator) {
 		
 		// System.out.println(this);
 		// System.out.println(p);
@@ -127,13 +131,140 @@ public class PartialResultSlot {
 			throw new RuntimeException ("error: there are opening windows but next slot has neither closing nor pending windows");
 		}
 		
-		if (operator.hasGroupBy())
+		if (operator.isHashJoin())
+			aggregateHashJoinResults (p, operator);
+		else if (operator.hasGroupBy())
 			aggregateMultipleKeys (p, operator);
 		else
 			aggregateSingleKey (p, operator);
 	}
 	
-	public void aggregateSingleKey (PartialResultSlot p, IAggregateOperator operator) {
+	private void aggregateHashJoinResults(PartialResultSlot p, IFragmentWindowsOperator operator) {
+		/* 
+		 * Populate this node's complete windows or p's opening windows.
+		 * 
+		 * And, nullify this node's opening windows and node p's closing 
+		 * and pending ones.
+		 */
+		
+		/* this.openingWindows + p.closingWindows -> this.completeWindows 
+		 * this.openingWindows + p.pendingWindows ->    p.openingWindows */
+		
+		int wid; /* Window index */
+		IQueryBuffer b1 = openingWindows.getBuffer();
+		IQueryBuffer b2;
+		
+		int start1, end1;
+		int start2, end2;
+		
+		int edge1 =   openingWindows.numberOfWindows() - 1;
+		int edge2 = p.closingWindows.numberOfWindows() - 1;
+		
+		if (debug) {
+			System.out.println(String.format("[DBG] aggregate %10d bytes (%4d opening windows) with %10d bytes (%4d closing windows)",
+
+				  openingWindows.getBuffer().position(),   openingWindows.numberOfWindows(), 
+				p.closingWindows.getBuffer().position(), p.closingWindows.numberOfWindows())
+			);
+		}
+		
+		b2 = p.closingWindows.getBuffer();
+
+		for (wid = 0; wid < p.closingWindows.numberOfWindows(); ++wid) {
+			
+			start1 =   openingWindows.getStartPointer(wid);
+			start2 = p.closingWindows.getStartPointer(wid);
+			
+			end1 = (wid == edge1) ? b1.position() :   openingWindows.getStartPointer(wid + 1);
+			end2 = (wid == edge2) ? b2.position() : p.closingWindows.getStartPointer(wid + 1);
+			
+			if (start1 == end1)
+				throw new IllegalStateException ("error: empty opening window partial result");
+			
+			if (start2 == end2) {
+				throw new IllegalStateException ("error: empty closing window partial result");
+			}
+			
+			aggregateJoinWindows  (b1, start1, end1, b2, start2, end2, operator, true);
+			/* At this point, joinWindows contains a packed, complete window result.
+			 * Append it directly to this node's complete windows. */
+			completeWindows.append(joinWindows);
+		}
+		
+		p.closingWindows.nullify();
+
+		/* There may be some opening windows left, in which case they are aggregated with node p's pending one.
+		 * The result will be stored (prepended) in p's opening windows */
+		if (wid < openingWindows.numberOfWindows()) {
+
+			if (p.pendingWindows.numberOfWindows() != 1) {
+
+				throw new RuntimeException ("error: there are opening windows left but next slot has no pending windows");
+			}
+			
+			if (debug) {
+				System.out.println(String.format("[DBG] aggregate %4d remaining opening windows with pending", 
+						openingWindows.numberOfWindows() - wid)); 
+			}
+			
+			b2 = p.pendingWindows.getBuffer();
+			
+			start2 = 0;
+			end2 = b2.position();
+			
+			int nextOpenWindow = wid;
+			int count = 0;
+			
+			while (nextOpenWindow < openingWindows.numberOfWindows()) {
+				
+				start1 = openingWindows.getStartPointer(nextOpenWindow);
+				end1 = (nextOpenWindow == edge1) ? b1.position() : openingWindows.getStartPointer(nextOpenWindow + 1);
+				
+				if (start1 == end1)
+					throw new IllegalStateException ("error: empty opening window partial result");
+				
+				aggregateJoinWindows  (b1, start1, end1, b2, start2, end2, operator, false);
+				
+				/* At this point, joinWindows contains a result of an opening window. Replace current window's result */
+				openingWindows.getBuffer().position(start1);
+				openingWindows.getBuffer().put(joinWindows.array(), 0, joinWindows.capacity());
+				
+				++nextOpenWindow;
+				++count;
+			}
+			
+			/* Prepend this opening windows (starting from `wid`) to node p's opening windows.
+			 * We have to shift the start pointers of p's opening windows down.
+			 * 
+			 * There are `count` new windows. The window size equal the hash table size:
+			 */
+			int windowSize = joinWindows.capacity();
+			
+			p.openingWindows.prepend(openingWindows, wid, count, windowSize);
+			
+			p.pendingWindows.nullify();
+		}
+		
+		openingWindows.nullify();
+	}
+
+	private void aggregateJoinWindows (
+		
+		IQueryBuffer b1, int start1, int end1, 
+		IQueryBuffer b2, int start2, int end2, 
+		IFragmentWindowsOperator operator,
+		boolean pack) {
+		
+		joinWindows.clear();
+		
+		b1.appendBytesTo(start1, end1 - start1, joinWindows.array());
+		b2.appendBytesTo(start2, end2 - start2, joinWindows.array());
+
+/*		joinWindows.put(b1.array(), start1, end1);
+		joinWindows.put(b2.array(), start2, end2);*/
+	}
+
+	public void aggregateSingleKey (PartialResultSlot p, IFragmentWindowsOperator operator) {
 		/* 
 		 * Populate this node's complete windows or p's opening windows.
 		 * 
@@ -299,7 +430,7 @@ public class PartialResultSlot {
 		openingWindows.nullify();
 	}
 		
-	public void aggregateMultipleKeys (PartialResultSlot p, IAggregateOperator operator) {
+	public void aggregateMultipleKeys (PartialResultSlot p, IFragmentWindowsOperator operator) {
 		/* 
 		 * Populate this node's complete windows or p's opening windows.
 		 * 
@@ -412,7 +543,7 @@ public class PartialResultSlot {
 		
 		IQueryBuffer b1, int start1, int end1, 
 		IQueryBuffer b2, int start2, int end2, 
-		IAggregateOperator operator,
+		IFragmentWindowsOperator operator,
 		boolean pack) {
 		
 		float value1, value2;
