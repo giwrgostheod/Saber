@@ -101,44 +101,123 @@ public class TestYahooStreamingBenchmark {
 
 	public static void main(String [] args) {
 	
+	    //================================================================================
+		// Configuration of SABER with either input arguments or default values. 
 		String executionMode = "cpu";
 		int numberOfThreads = 1;
 		int batchSize = 1048576;
-		WindowType windowType1 = WindowType.ROW_BASED;
-		int windowRange1 = 1024;
-		int windowSlide1 = 1024;
-		int numberOfAttributes1 = 6;
-		WindowType windowType2 = WindowType.ROW_BASED;
-		int windowRange2 = 1024;
-		int windowSlide2 = 1024;
-		int numberOfAttributes2 = 6;
+		WindowType joinWindowType = WindowType.ROW_BASED;
+		int joinWindowRange = 1024;
+		int joinWindowSlide = 1024;
 		int selectivity = 1;
-		int tuplesPerInsert = 100;		
-		int i;
+		int tuplesPerInsert = 5000000;	
 		
-		SystemConf.CIRCULAR_BUFFER_SIZE = 32 * 1048576;
+		int circularBufferSize = 256 * 1048576;
+		int unboundedBufferSize = 16 * 1048576;
+		int hashTableSize = 1048576;
+		int partialWindows = 1048576;
 		
-		SystemConf.UNBOUNDED_BUFFER_SIZE = 16 * 1048576;	
+		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
+		SystemConf.LATENCY_ON = false;
+
 		
-		SystemConf.CPU = true;
-		SystemConf.GPU = false;		
+		/* Parse command line arguments */
+		int i, j;
+		for (i = 0; i < args.length; ) {
+			if ((j = i + 1) == args.length) {
+				System.err.println(usage);
+				System.exit(1);
+			}
+			if (args[i].equals("--mode")) { 
+				executionMode = args[j];
+			} else
+			if (args[i].equals("--threads")) {
+				numberOfThreads = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--batch-size")) { 
+				batchSize = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--window-type-of-join")) { 
+				joinWindowType = WindowType.fromString(args[j]);
+			} else
+			if (args[i].equals("--window-range-of-join")) { 
+				joinWindowRange = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--window-slide-of-join")) { 
+				joinWindowSlide = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--selectivity")) { 
+				selectivity = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--tuples-per-insert")) { 
+				tuplesPerInsert = Integer.parseInt(args[j]);
+			}else
+			if (args[i].equals("--circ-buffer-size")) { 
+				circularBufferSize = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--unbounded-buffer-size")) { 
+				unboundedBufferSize = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--hash-table-size")) { 
+				hashTableSize = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--partial-windows")) { 
+				partialWindows = Integer.parseInt(args[j]);
+			} else
+			if (args[i].equals("--scheduling-policy")) { 
+				SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.FIFO;
+			} else {
+				System.err.println(String.format("error: unknown flag %s %s", args[i], args[j]));
+				System.exit(1);
+			}
+			i = j + 1;
+		}
+		
+		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;
+		
+		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;
+		
+		SystemConf.HASH_TABLE_SIZE = hashTableSize;
+		
+		SystemConf.PARTIAL_WINDOWS = partialWindows;
+		
+		SystemConf.SWITCH_THRESHOLD = 10;
+		
+		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;
+		
+		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
+		
+		SystemConf.CPU = false;
+		SystemConf.GPU = false;
+		
+		if (executionMode.toLowerCase().contains("cpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.CPU = true;
+		
+		if (executionMode.toLowerCase().contains("gpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.GPU = true;
 		
 		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
 		
-		SystemConf.THREADS = numberOfThreads;				
+		SystemConf.THREADS = numberOfThreads;			
 		
 		QueryConf queryConf = new QueryConf (batchSize);
 		Set<Query> queries = new HashSet<Query>();
 		long timestampReference = System.nanoTime();
+	    //================================================================================
+
 		
+		
+	    //================================================================================
 		// Create input schema.
 		ITupleSchema  inputSchema = createInputStreamSchema();
 		/* Reset tuple size */
 		int inputStreaTupleSize = inputSchema.getTupleSize();
+	    //================================================================================
+
 		
+
 		
-		
-		// -----------------------------
+	    //================================================================================
 		// Filter (event_type == "view"). 		
 		WindowDefinition filterWindow = new WindowDefinition (WindowType.ROW_BASED, 1, 1);			
 		IPredicate predicate = new IntComparisonPredicate
@@ -153,11 +232,11 @@ public class TestYahooStreamingBenchmark {
 		operators.add(filterOperator);				
 		Query filterQuery = new Query (0, operators, inputSchema, filterWindow, null, null, queryConf, timestampReference);						
 		queries.add(filterQuery);
-		// -----------------------------
+	    //================================================================================
 
 		
 		
-		// -----------------------------
+	    //================================================================================
 		// Project (ad_id, event_time).
 		WindowDefinition projectWindow = new WindowDefinition (WindowType.ROW_BASED, 1, 1);		
 		ITupleSchema projectSchema = inputSchema;
@@ -176,11 +255,11 @@ public class TestYahooStreamingBenchmark {
 		queries.add(projectQuery);
 
 		filterQuery.connectTo(projectQuery);
-		// -----------------------------
+	    //================================================================================
 
 		
 		
-		// -----------------------------------
+	    //================================================================================
 		// Join on ad_id with Relational Table
 						
 		ITupleSchema joinRelationalSchema = createCampaignsSchema();
@@ -197,7 +276,7 @@ public class TestYahooStreamingBenchmark {
 		ITupleSchema joinStreamSchema = projectQuery.getSchema();
 		/* Reset tuple size */
 		int streamTupleSize = joinStreamSchema.getTupleSize();
-		WindowDefinition windowStream = new WindowDefinition (windowType2, windowRange2, windowSlide2);
+		WindowDefinition windowStream = new WindowDefinition (joinWindowType, joinWindowRange, joinWindowSlide);
 
 		
 		predicate =  new IntComparisonPredicate
@@ -215,11 +294,11 @@ public class TestYahooStreamingBenchmark {
 
 		queries.add(joinQuery);
 		joinQuery.connectTo(filterQuery);			
-		// -----------------------------
+	    //================================================================================
 
 		
 		
-		// -----------------------------------
+	    //================================================================================
 		// Aggregate (count("*") as count, max(event_time) as 'lastUpdate) 
 		// Group By Campaign_ID with 10 seconds tumbling window
 		WindowDefinition aggregateWindow = new WindowDefinition (WindowType.RANGE_BASED , 10000, 10000);	
@@ -239,7 +318,7 @@ public class TestYahooStreamingBenchmark {
 		
 		Expression [] groupByAttributes = new Expression [] {new IntColumnReference(2)};
 		
-		//fix!!
+		//fix the aggregationTypes implementation to fit to our query
 		cpuCode = new Aggregation (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes);
 		gpuCode = new AggregationKernel (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes, aggregateSchema, batchSize);
 		
@@ -253,8 +332,12 @@ public class TestYahooStreamingBenchmark {
 		queries.add(aggregateQuery);
 		
 		aggregateQuery.connectTo(joinQuery);
-		// --------------------------
-		// Set up application.
+	    //================================================================================
+
+		
+		
+	    //================================================================================
+		// Set up application and initialize the dispatchers for aggregate and hash join operators.
 		QueryApplication application = new QueryApplication(queries);
 		
 		application.setup();
@@ -267,27 +350,33 @@ public class TestYahooStreamingBenchmark {
 			joinQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, true);
 			aggregateQuery.setFragmentWindowsOperator((IFragmentWindowsOperator) gpuCode, false);
 		}
+	    //================================================================================
+
 		
+		
+	    //================================================================================
 		/* Set up the input streams */
 		
 		byte [] data1 = new byte [inputStreaTupleSize * tuplesPerInsert];
-		byte [] data2 = new byte [campaignsTupleSize * tuplesPerInsert];
+		byte [] data2 = new byte [campaignsTupleSize * 100];
 		
 		ByteBuffer b1 = ByteBuffer.wrap(data1);
 		ByteBuffer b2 = ByteBuffer.wrap(data2);
 		
 		/* Fill the buffers */
 		
+		// Buffer related to the input Stream
 		int value = 0;
 		int timestamp = 0;
 		while (b1.hasRemaining()) {
 			timestamp ++;
 			b1.putLong (timestamp);
 			b1.putInt(selectivity);			
-			for (i = 1; i < numberOfAttributes1; i++)
+			for (i = 1; i < 7; i++)
 				b1.putInt(1);
 		}
 		
+		// Buffer related to the Table of Campaigns
 		timestamp = 0;
 		while (b2.hasRemaining()) {
 			timestamp ++;
@@ -297,9 +386,15 @@ public class TestYahooStreamingBenchmark {
 				b2.putInt(1);
 			else
 				b2.putInt(value);
-			for (i = 1; i < numberOfAttributes2; i++)
+			for (i = 1; i < 2; i++)
 				b2.putInt(2);
 		}
+	    //================================================================================
+
+		
+		
+	    //================================================================================
+		// Start Execution ...
 		
 		/* Reset timestamp */
 		if (SystemConf.LATENCY_ON) {
@@ -309,9 +404,9 @@ public class TestYahooStreamingBenchmark {
 		}
 		
 		try {
-			application.processSecondStream  (joinQuery.getId(), data2);
+			application.processSecondStream  (joinQuery.getId(), data2); // fill the relational table's buffer only once!
 			while (true) {	
-	            // Thread.sleep(10);
+	            Thread.sleep(1000); // control the input rate
 				application.processFirstStream (data1);				
 				if (SystemConf.LATENCY_ON)
 					b1.putLong(0, Utils.pack((long) ((System.nanoTime() - timestampReference) / 1000L), b1.getLong(0)));
@@ -320,5 +415,7 @@ public class TestYahooStreamingBenchmark {
 			e.printStackTrace(); 
 			System.exit(1);
 		}
+	    //================================================================================
+
 	}
 }
