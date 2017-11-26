@@ -25,7 +25,7 @@ import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
 
 public class TestHashJoinWithRelationalTable {
 	
-	public static final String usage = "usage: TestThetaJoinWithRelationalTable";
+	public static final String usage = "usage: TestHashJoinWithRelationalTable";
 
 	public static void main(String [] args) {
 	

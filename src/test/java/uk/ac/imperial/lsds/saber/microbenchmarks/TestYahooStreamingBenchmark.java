@@ -16,6 +16,7 @@ import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
 import uk.ac.imperial.lsds.saber.WindowDefinition.WindowType;
 import uk.ac.imperial.lsds.saber.cql.expressions.Expression;
+import uk.ac.imperial.lsds.saber.cql.expressions.ExpressionsUtil;
 import uk.ac.imperial.lsds.saber.cql.expressions.floats.FloatColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntColumnReference;
 import uk.ac.imperial.lsds.saber.cql.expressions.ints.IntConstant;
@@ -63,7 +64,7 @@ public class TestYahooStreamingBenchmark {
 		schema.setAttributeType (5, PrimitiveType.INT  );
 		schema.setAttributeType (6, PrimitiveType.INT  );
 		
-		schema.setAttributeName (0, "event_time");
+		schema.setAttributeName (0, "timestamp"); // timestamp
 		schema.setAttributeName (1, "user_id");
 		schema.setAttributeName (2, "page_id");
 		schema.setAttributeName (3, "ad_id");
@@ -110,12 +111,14 @@ public class TestYahooStreamingBenchmark {
 		int joinWindowRange = 1024;
 		int joinWindowSlide = 1024;
 		int selectivity = 1;
-		int tuplesPerInsert = 5000000;	
+		int tuplesPerInsert = 50000;//00000;	
 		
-		int circularBufferSize = 256 * 1048576;
+		int circularBufferSize = 32 * 1048576;
 		int unboundedBufferSize = 16 * 1048576;
 		int hashTableSize = 1048576;
 		int partialWindows = 1048576;
+		
+		int adsPerCampaign = 1;
 		
 		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
 		SystemConf.LATENCY_ON = false;
@@ -166,7 +169,10 @@ public class TestYahooStreamingBenchmark {
 			} else
 			if (args[i].equals("--scheduling-policy")) { 
 				SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.FIFO;
-			} else {
+			}else
+			if (args[i].equals("--ads-per-campaign")) { 
+				adsPerCampaign = Integer.parseInt(args[j]);
+			}  else {
 				System.err.println(String.format("error: unknown flag %s %s", args[i], args[j]));
 				System.exit(1);
 			}
@@ -211,7 +217,7 @@ public class TestYahooStreamingBenchmark {
 		// Create input schema.
 		ITupleSchema  inputSchema = createInputStreamSchema();
 		/* Reset tuple size */
-		int inputStreaTupleSize = inputSchema.getTupleSize();
+		int inputStreamTupleSize = inputSchema.getTupleSize();
 	    //================================================================================
 
 		
@@ -221,7 +227,7 @@ public class TestYahooStreamingBenchmark {
 		// Filter (event_type == "view"). 		
 		WindowDefinition filterWindow = new WindowDefinition (WindowType.ROW_BASED, 1, 1);			
 		IPredicate predicate = new IntComparisonPredicate
-				(IntComparisonPredicate.EQUAL_OP, new IntColumnReference(1), new IntConstant(0));
+				(IntComparisonPredicate.EQUAL_OP, new IntColumnReference(5), new IntConstant(0));
 		
 		IOperatorCode cpuCode = new Selection (predicate);
 		IOperatorCode gpuCode = new SelectionKernel (inputSchema, predicate, null, queryConf.getBatchSize());
@@ -267,13 +273,13 @@ public class TestYahooStreamingBenchmark {
 		int campaignsTupleSize = joinRelationalSchema.getTupleSize();
 		
 		// set the size of the relational table
-		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = campaignsTupleSize * tuplesPerInsert;
+		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = campaignsTupleSize * 100 * adsPerCampaign;
 		// set the window on the relational table correctly
 		// WindowDefinition window1 = new WindowDefinition (windowType1, windowRange1, windowSlide1);
-		WindowDefinition windowRelational = new WindowDefinition (WindowType.ROW_BASED, tuplesPerInsert, tuplesPerInsert);
+		WindowDefinition windowRelational = new WindowDefinition (WindowType.ROW_BASED, 100 * adsPerCampaign, 100 * adsPerCampaign);
 		
 		
-		ITupleSchema joinStreamSchema = projectQuery.getSchema();
+		ITupleSchema joinStreamSchema = ExpressionsUtil.getTupleSchemaFromExpressions(expressions); // projectQuery.getSchema();
 		/* Reset tuple size */
 		int streamTupleSize = joinStreamSchema.getTupleSize();
 		WindowDefinition windowStream = new WindowDefinition (joinWindowType, joinWindowRange, joinWindowSlide);
@@ -293,7 +299,7 @@ public class TestYahooStreamingBenchmark {
 		Query joinQuery = new Query (2, operators, joinStreamSchema, windowStream, false, joinRelationalSchema, windowRelational, true, queryConf, timestampReference);
 
 		queries.add(joinQuery);
-		joinQuery.connectTo(filterQuery);			
+		projectQuery.connectTo(joinQuery);			
 	    //================================================================================
 
 		
@@ -302,7 +308,7 @@ public class TestYahooStreamingBenchmark {
 		// Aggregate (count("*") as count, max(event_time) as 'lastUpdate) 
 		// Group By Campaign_ID with 10 seconds tumbling window
 		WindowDefinition aggregateWindow = new WindowDefinition (WindowType.RANGE_BASED , 10000, 10000);	
-		ITupleSchema aggregateSchema = joinQuery.getSchema();
+		ITupleSchema aggregateSchema = ExpressionsUtil.mergeTupleSchemas(joinStreamSchema, joinRelationalSchema); // joinQuery.getSchema();
 		int aggregateStreamTupleSize = aggregateSchema.getTupleSize();
 		
 		AggregationType [] aggregationTypes = new AggregationType [2];
@@ -316,7 +322,7 @@ public class TestYahooStreamingBenchmark {
 		for (i = 0; i < 2; ++i)
 			aggregationAttributes[i] = new FloatColumnReference(0);
 		
-		Expression [] groupByAttributes = new Expression [] {new IntColumnReference(2)};
+		Expression [] groupByAttributes = new Expression [] {new IntColumnReference(4)};
 		
 		//fix the aggregationTypes implementation to fit to our query
 		cpuCode = new Aggregation (aggregateWindow, aggregationTypes, aggregationAttributes, groupByAttributes);
@@ -331,7 +337,7 @@ public class TestYahooStreamingBenchmark {
 				
 		queries.add(aggregateQuery);
 		
-		aggregateQuery.connectTo(joinQuery);
+		joinQuery.connectTo(aggregateQuery);
 	    //================================================================================
 
 		
@@ -357,8 +363,8 @@ public class TestYahooStreamingBenchmark {
 	    //================================================================================
 		/* Set up the input streams */
 		
-		byte [] data1 = new byte [inputStreaTupleSize * tuplesPerInsert];
-		byte [] data2 = new byte [campaignsTupleSize * 100];
+		byte [] data1 = new byte [inputStreamTupleSize * tuplesPerInsert];
+		byte [] data2 = new byte [campaignsTupleSize * 100 * adsPerCampaign];
 		
 		ByteBuffer b1 = ByteBuffer.wrap(data1);
 		ByteBuffer b2 = ByteBuffer.wrap(data2);
@@ -366,28 +372,31 @@ public class TestYahooStreamingBenchmark {
 		/* Fill the buffers */
 		
 		// Buffer related to the input Stream
-		int value = 0;
 		int timestamp = 0;
+		int value = 0;
 		while (b1.hasRemaining()) {
 			timestamp ++;
-			b1.putLong (timestamp);
-			b1.putInt(selectivity);			
-			for (i = 1; i < 7; i++)
-				b1.putInt(1);
+			b1.putLong (timestamp); //event_timestamp
+			b1.putInt(1); 		 	// user_id
+			b1.putInt(1); 		 	// page_id
+			b1.putInt(value % (100*adsPerCampaign)); // ad_id
+			b1.putInt(value % 5);	// ad_type: (0, 1, 2, 3, 4) => ("banner", "modal", "sponsored-search", "mail", "mobile")
+			b1.putInt(value % 3);	// event_type: (0, 1, 2) => ("view", "click", "purchase")
+			b1.putInt(1);			// ip_address
+			value ++;
 		}
 		
 		// Buffer related to the Table of Campaigns
 		timestamp = 0;
+		value = 0;
 		while (b2.hasRemaining()) {
-			timestamp ++;
-			value = (value + 1) % 100; 
-			b2.putLong (timestamp);
-			if (value == 4 || value == 17)
-				b2.putInt(1);
-			else
-				b2.putInt(value);
-			for (i = 1; i < 2; i++)
-				b2.putInt(2);
+			timestamp ++;			
+			for (i = 0; i < adsPerCampaign; i++){   // every campaign has 10 ads
+				b2.putLong (timestamp);				// timestamp
+				b2.putInt((value*10 + i) % (100*adsPerCampaign));	// ad_id
+				b2.putInt((value) % 100);			// campaign_id
+			}
+			value ++;
 		}
 	    //================================================================================
 
@@ -406,8 +415,9 @@ public class TestYahooStreamingBenchmark {
 		try {
 			application.processSecondStream  (joinQuery.getId(), data2); // fill the relational table's buffer only once!
 			while (true) {	
-	            Thread.sleep(1000); // control the input rate
-				application.processFirstStream (data1);				
+	            //Thread.sleep(1000); // control the input rate
+				application.processFirstStream (filterQuery.getId(), data1);
+				// application.processSecondStream  (joinQuery.getId(), data2); 
 				if (SystemConf.LATENCY_ON)
 					b1.putLong(0, Utils.pack((long) ((System.nanoTime() - timestampReference) / 1000L), b1.getLong(0)));
 			}
