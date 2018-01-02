@@ -21,7 +21,7 @@ GUAVA="${MVN}/com/google/guava/guava/20.0/guava-20.0.jar"
 
 TESTS="target/test-classes"
 
-if [ ! -f "lib/saber-0.0.1-SNAPSHOT.jar" ]; then
+if [ ! -f "lib/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar" ]; then
         echo "error: lib/saber-0.0.1-SNAPSHOT.jar not found. Try 'build.sh' first"
         exit 1
 fi
@@ -38,7 +38,7 @@ fi
 
 # Set classpath
 JCP="."
-JCP="${JCP}:lib/saber-0.0.1-SNAPSHOT.jar"
+JCP="${JCP}:lib/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar"
 # JCP="${JCP}:${LOG4J}"
 JCP="${JCP}:${JETTYSERVER}:${JETTYUTIL}:${JETTYHTTP}:${JETTYIO}"
 JCP="${JCP}:${JACKSONCORE}:${JACKSONBIND}:${JACKSONANNOTATIONS}"

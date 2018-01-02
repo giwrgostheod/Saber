@@ -8,3 +8,5 @@
 *.txt
 *.log
 /lib/
+scripts/experiments/
+doc/

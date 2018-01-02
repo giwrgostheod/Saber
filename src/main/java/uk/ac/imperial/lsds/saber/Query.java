@@ -2,7 +2,7 @@ package uk.ac.imperial.lsds.saber;
 
 import java.util.Set;
 
-import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.dispatchers.ITaskDispatcher;
 import uk.ac.imperial.lsds.saber.dispatchers.JoinTaskDispatcher;
 import uk.ac.imperial.lsds.saber.dispatchers.TaskDispatcher;
@@ -37,7 +37,6 @@ public class Query {
 
 	private ITupleSchema firstSchema, secondSchema;
 	private WindowDefinition firstWindow, secondWindow;
-	private Boolean isFirstRelational, isSecondRelational;
 	
 	private QueryConf queryConf;
 	
@@ -52,7 +51,7 @@ public class Query {
 			WindowDefinition window, 
 			QueryConf queryConf) {
 		
-		this(id, operators, schema, window, false, null, null, null, queryConf, 0L);
+		this(id, operators, schema, window, null, null, queryConf, 0L);
 	}
 	
 	public Query (
@@ -63,19 +62,7 @@ public class Query {
 			QueryConf queryConf,
 			long timestampReference) {
 		
-		this(id, operators, schema, window, false, null, null, null, queryConf, timestampReference);
-	}
-	
-	public Query (
-			int id, 
-			Set<QueryOperator> operators, 
-			ITupleSchema schema, 
-			WindowDefinition window, 
-			Boolean isRelational,
-			QueryConf queryConf,
-			long timestampReference) {
-		
-		this(id, operators, schema, window, isRelational, null, null, null, queryConf, timestampReference);
+		this(id, operators, schema, window, null, null, queryConf, timestampReference);
 	}
 	
 	public Query(
@@ -87,7 +74,7 @@ public class Query {
 			WindowDefinition secondWindow,
 			QueryConf queryConf) {
 		
-		this(id, operators, firstSchema, firstWindow, false, secondSchema, secondWindow, false, queryConf, 0L);
+		this(id, operators, firstSchema, firstWindow, secondSchema, secondWindow, queryConf, 0L);
 	}
 	
 	public Query (
@@ -99,20 +86,6 @@ public class Query {
 			WindowDefinition secondWindow,
 			QueryConf queryConf,
 			long timestampReference) {
-		this(id, operators, firstSchema, firstWindow, false, secondSchema, secondWindow, false, queryConf, timestampReference);
-	}	
-	
-	public Query (
-			int id, 
-			Set<QueryOperator> operators,
-			ITupleSchema firstSchema, 
-			WindowDefinition firstWindow, 
-			Boolean isFirstRelational,
-			ITupleSchema secondSchema, 
-			WindowDefinition secondWindow,
-			Boolean isSecondRelational,
-			QueryConf queryConf,
-			long timestampReference) {
 		
 		this.id = id;
 		this.name = this.sql = null;
@@ -121,11 +94,9 @@ public class Query {
 		
 		this.firstSchema = firstSchema;
 		this.firstWindow = firstWindow;
-		this.isFirstRelational = isFirstRelational;
 		
 		this.secondSchema = secondSchema;
 		this.secondWindow = secondWindow;
-		this.isSecondRelational = isSecondRelational;
 		
 		this.queryConf = queryConf;
 		
@@ -257,11 +228,10 @@ public class Query {
 	
 	public void setup () {
 		
-		// fix this condition for more use cases
-		if (((secondSchema == null) && (secondWindow == null)) || (isSecondRelational))
-			dispatcher = new TaskDispatcher (this, isSecondRelational);
+		if ((secondSchema == null) && (secondWindow == null))
+			dispatcher = new TaskDispatcher (this);
 		else 
-			dispatcher = new JoinTaskDispatcher (this, isFirstRelational, isSecondRelational);
+			dispatcher = new JoinTaskDispatcher (this);
 		
 		dispatcher.setup();
 		
@@ -325,7 +295,7 @@ public class Query {
 		return numberOfDownstreamQueries;
 	}
 	
-	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin) {
-		dispatcher.setFragmentWindowsOperator (operator, isHashJoin);
-	}	
+	public void setAggregateOperator (IAggregateOperator operator) {
+		dispatcher.setAggregateOperator (operator);
+	}
 }

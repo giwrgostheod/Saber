@@ -9,10 +9,9 @@ import uk.ac.imperial.lsds.saber.WindowBatchFactory;
 import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.buffers.CircularQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
-import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
-import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
+// import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
 import uk.ac.imperial.lsds.saber.tasks.Task;
 import uk.ac.imperial.lsds.saber.tasks.TaskFactory;
 import uk.ac.imperial.lsds.saber.tasks.TaskQueue;
@@ -28,13 +27,11 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	
 	private WindowDefinition firstWindow;
 	private ITupleSchema firstSchema;
-	private Boolean isFirstRelational;
 	
 	private int firstTupleSize;
 	
 	private WindowDefinition secondWindow;
 	private ITupleSchema secondSchema;
-	private Boolean isSecondRelational;
 	
 	private int secondTupleSize;
 	
@@ -62,24 +59,18 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	private long secondNextTime;
 	private long secondEndTime;
 	
-	private int mask1, mask2;
+	private int mask;
 	
 	private int latencyMark = -1;
 	
 	private Object lock = new Object();
 
-	public JoinTaskDispatcher (Query query, Boolean isFirstRelational, Boolean isSecondRelational) {
+	public JoinTaskDispatcher (Query query) {
 		
 		parent = query;
 		
-		this.isFirstRelational = isFirstRelational;
-		this.isSecondRelational = isSecondRelational;
-		
-		// based on isRelational choose if we have a Relational Table or not
-		firstBuffer  = this.isFirstRelational ? new RelationalTableQueryBuffer(parent.getId(), SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false) 
-												: new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
-		secondBuffer = this.isSecondRelational ? new RelationalTableQueryBuffer(parent.getId(), SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false) 
-												: new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
+		firstBuffer  = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
+		secondBuffer = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
 		
 		firstWindow = parent.getFirstWindowDefinition();
 		firstSchema = parent.getFirstSchema();
@@ -98,8 +89,8 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		
 		secondLastEndIndex = -secondTupleSize;
 		
-		mask1 = firstBuffer.capacity() - 1;
-		mask2 = secondBuffer.capacity() - 1;
+		/* The assumption is that both first and second buffer are of the same size */
+		mask = firstBuffer.capacity() - 1;
 		
 		batchSize = parent.getQueryConf().getBatchSize();
 		
@@ -173,9 +164,9 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		return handler;
 	}
 	
-	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin) {
+	public void setAggregateOperator (IAggregateOperator operator) {
 		throw new IllegalStateException ("error: cannot set aggregate operator of a join task dispatcher");
-	}	
+	}
 	
 	private void assembleFirst (int idx, int length) {
 		
@@ -187,9 +178,6 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		}
 		
 		firstEndIndex = idx + length - firstTupleSize;
-		
-		if (isFirstRelational) 
-			return;
 		
 		synchronized (lock) {
 			
@@ -244,9 +232,6 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		
 		secondEndIndex = idx + length - secondTupleSize;
 		
-		if (isSecondRelational) 
-			return;
-		
 		synchronized (lock) {
 			
 			if (secondEndIndex < secondStartIndex)
@@ -297,14 +282,14 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 	private void createTask (boolean assembledFirst) {
 		
 		int taskid = this.getTaskNumber();
-		
+		/*
 		if (MonetDBExperimentalSetup.enabled) {
 			if (taskid == 1) {
 				MonetDBExperimentalSetup.startTime = System.nanoTime();
 				System.out.println("[DBG] MonetDB comparison experiment starts...");
 			}
 		}
-		
+		*/
 		// if (taskid > 6)
 		//	return;
 		
@@ -312,10 +297,10 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		int secondFreePointer = Integer.MIN_VALUE;
 		
 		if (firstNextIndex != firstStartIndex)
-			firstFreePointer = (firstNextIndex - firstTupleSize) & mask1;
+			firstFreePointer = (firstNextIndex - firstTupleSize) & mask;
 		
 		if (secondNextIndex != secondStartIndex)
-			secondFreePointer = (secondNextIndex - secondTupleSize) & mask2;
+			secondFreePointer = (secondNextIndex - secondTupleSize) & mask;
 		
 		/* Find latency mark */
 		int mark = -1;
@@ -407,11 +392,11 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 		/*
 		 * Second, move the start pointer for the next task to the next pointer.
 		 */
-		if (firstNextIndex > mask1)
-			firstNextIndex = firstNextIndex & mask1;
+		if (firstNextIndex > mask)
+			firstNextIndex = firstNextIndex & mask;
 		
-		if (secondNextIndex > mask2)
-			secondNextIndex = secondNextIndex & mask2;
+		if (secondNextIndex > mask)
+			secondNextIndex = secondNextIndex & mask;
 		
 		 firstStartIndex =  firstNextIndex;
 		secondStartIndex = secondNextIndex;
@@ -430,10 +415,6 @@ public class JoinTaskDispatcher implements ITaskDispatcher {
 			return (long) Utils.getTupleTimestamp(value);
 		else 
 			return value;
-	}
-	
-	public int getParentQueryId () {
-		return parent.getId();
 	}
 }
 

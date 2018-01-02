@@ -96,6 +96,16 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		return buffer.getLong(normalise(offset));
 	}
 	
+	public long getMSBLongLong (int offset) {
+
+		return buffer.getLong(normalise(offset));
+	}
+	
+	public long getLSBLongLong (int offset) {
+
+		return buffer.getLong(normalise(offset) + 8);
+	}
+	
 	public byte [] array () {
 		
 		if (isDirect)
@@ -174,13 +184,26 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		throw new UnsupportedOperationException("error: cannot put value to a circular buffer");
 	}
 	
+	public int putLongLong (long msbValue, long lsbValue) {
+		
+		throw new UnsupportedOperationException("error: cannot put value to a circular buffer");
+	}
+	
+	public int putLongLong (int index, long msbValue, long lsbValue) {
+		
+		throw new UnsupportedOperationException("error: cannot put value to a circular buffer");
+	}
+	
 	public int put (byte [] values) {
 		
 		return put (values, values.length);
 	}
 	
 	public int put (byte [] values, int length) {
-		
+		return put( values, length, 0);
+	}
+	
+	public int put (byte [] values, int length, int offset) {
 		if (isDirect)
 			throw new UnsupportedOperationException("error: cannot put array to a direct buffer");
 		
@@ -199,6 +222,9 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		int index = normalise (_end);
 		if (length > (size - index)) { /* Copy in two parts */
 			
+			if (offset != 0)
+				throw new NullPointerException ("error: copy in two part if the offset is greater than 0");
+			
 			int right = size - index;
 			int left  = length - (size - index);
 			
@@ -207,7 +233,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			
 		} else {
 			
-			System.arraycopy(values, 0, data, index, length);
+			System.arraycopy(values, offset, data, index, length);
 		}
 		
 		int p = normalise (_end + length);
@@ -219,25 +245,14 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		return index;
 	}
 	
-	public int put (byte [] values, int offset, int length) {
-		
-		if (offset > 0)
-			throw new UnsupportedOperationException("error: cannot put byte array with an offset of non-zero to a circular buffer");
-		
-		return put (values, length);
-	}
-	
 	public int put (IQueryBuffer buffer) {
 		
 		return put (buffer.array());
 	}
 	
 	public int put (IQueryBuffer buffer, int offset, int length) {
-		
-		if (offset > 0)
-			throw new UnsupportedOperationException("error: cannot put byte array with an offset of non-zero to a circular buffer");
-		
-		return put (buffer.array(), length);
+				
+		return put (buffer.array(), length, offset);
 	}
 	
 	public void free (int offset) {

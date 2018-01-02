@@ -9,8 +9,7 @@ import uk.ac.imperial.lsds.saber.WindowBatchFactory;
 import uk.ac.imperial.lsds.saber.WindowDefinition;
 import uk.ac.imperial.lsds.saber.buffers.CircularQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
-import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 import uk.ac.imperial.lsds.saber.tasks.Task;
 import uk.ac.imperial.lsds.saber.tasks.TaskFactory;
@@ -22,18 +21,15 @@ public class TaskDispatcher implements ITaskDispatcher {
 	
 	private IQueryBuffer buffer;
 	
-	private IQueryBuffer relationalBuffer = null;
-	
-	private WindowDefinition window, relationalWindow;
-	private ITupleSchema schema, relationalSchema;
-	private Boolean isRelational;
+	private WindowDefinition window;
+	private ITupleSchema schema;
 	
 	private ResultHandler handler;
 	
 	private Query parent;
 	
 	private int batchSize;
-	private int tupleSize, relationalTupleSize;
+	private int tupleSize;
 	
 	/* Task Identifier */
 	private int nextTask = 1;
@@ -49,28 +45,20 @@ public class TaskDispatcher implements ITaskDispatcher {
 	private long thisBatchStartPointer;
 	private long nextBatchEndPointer;
 	
-	public TaskDispatcher (Query query, Boolean isRelational) {
+	public TaskDispatcher (Query query) {
 		
 		parent = query;
-		this.isRelational = isRelational;
 		
-		buffer  = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
+		buffer = new CircularQueryBuffer(parent.getId(), SystemConf.CIRCULAR_BUFFER_SIZE, false);
 		
 		window = this.parent.getWindowDefinition ();
-		schema = this.parent.getSchema ();			
+		schema = this.parent.getSchema ();
 		
 		handler = null;
 		
 		batchSize = parent.getQueryConf().getBatchSize();
 		
 		tupleSize = schema.getTupleSize();
-		
-		if (isRelational) {
-			relationalBuffer = new RelationalTableQueryBuffer(parent.getId(), SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false);
-			relationalWindow = parent.getSecondWindowDefinition();
-			relationalSchema = parent.getSecondSchema();			
-			relationalTupleSize = relationalSchema.getTupleSize();
-		}
 		
 		/* Initialize constants */
 		System.out.println(String.format("[DBG] %d bytes/batch %d panes/slide %d panes/window", 
@@ -87,7 +75,7 @@ public class TaskDispatcher implements ITaskDispatcher {
 	}
 	
 	public void setup () {
-		handler = new ResultHandler (parent, buffer, relationalBuffer);
+		handler = new ResultHandler (parent, buffer, null);
 		/* The single, system-wide task queue for either CPU or GPU tasks */
 		workerQueue = parent.getExecutorQueue();
 	}
@@ -118,13 +106,7 @@ public class TaskDispatcher implements ITaskDispatcher {
 	}
 	
 	public void dispatchToSecondStream (byte [] data, int length) {
-		if (isRelational) {
-			int idx;
-			while ((idx = relationalBuffer.put(data, length)) < 0) {
-				Thread.yield();
-			}		
-			return;
-		}
+		
 		throw new UnsupportedOperationException("error: cannot dispatch to a second stream buffer");
 	}
 
@@ -153,8 +135,8 @@ public class TaskDispatcher implements ITaskDispatcher {
 		return handler;
 	}
 
-	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin) {
-		handler.setFragmentWindowsOperator(operator, isHashJoin);
+	public void setAggregateOperator (IAggregateOperator operator) {
+		handler.setAggregateOperator(operator);
 	}
 	
 	private void assemble (int index, int length) {
@@ -193,7 +175,6 @@ public class TaskDispatcher implements ITaskDispatcher {
 		
 		Task task;
 		WindowBatch batch;
-		WindowBatch relationalBatch = null;
 		
 		int taskid;
 		
@@ -227,10 +208,6 @@ public class TaskDispatcher implements ITaskDispatcher {
 			System.exit(1);
 		}
 		
-		if (parent.getTaskDispatcher().getHandler().freeBuffer1 == null) {
-			System.err.println("This buffer is null?!");
-			System.exit(1);
-		}
 		batch = WindowBatchFactory.newInstance (batchSize, taskid, (int) (free), Integer.MIN_VALUE, parent, buffer, window, schema, mark);
 		
 		if (window.isRangeBased()) {
@@ -244,14 +221,7 @@ public class TaskDispatcher implements ITaskDispatcher {
 		batch.setBufferPointers((int) p, (int) q);
 		batch.setStreamPointers (b_, _d);
 		
-		if (isRelational) {
-			relationalBatch = WindowBatchFactory.newInstance (batchSize, taskid, (int) (free), Integer.MIN_VALUE, parent, relationalBuffer, 
-																relationalWindow, relationalSchema, mark);						
-			relationalBatch.setBufferPointers((int)(0 & mask), (int) (relationalBuffer.capacity() & mask));
-			relationalBatch.setStreamPointers (0, relationalBuffer.capacity());
-		}
-		
-		task = TaskFactory.newInstance(taskid, batch, relationalBatch);
+		task = TaskFactory.newInstance(taskid, batch, null);
 		
 		workerQueue.add(task);
 	}
@@ -270,8 +240,4 @@ public class TaskDispatcher implements ITaskDispatcher {
 		else 
 			return value;
 	}
-	
-	public int getParentQueryId () {
-		return parent.getId();
-	}	
 }

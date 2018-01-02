@@ -59,6 +59,10 @@ public class WindowHashTableWrapper {
 		return (idx + TSTAMP_OFFSET);
 	}
 	
+	public ByteBuffer getContent () {
+		return this.content;
+	}
+	
 	public int getKeyOffset (int idx) {
 		return (idx + KEY_OFFSET);
 	}

@@ -1,7 +1,7 @@
 package uk.ac.imperial.lsds.saber.dispatchers;
 
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.cql.operators.IFragmentWindowsOperator;
+import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.handlers.ResultHandler;
 
 public interface ITaskDispatcher {
@@ -22,9 +22,7 @@ public interface ITaskDispatcher {
 
 	public long getBytesGenerated();
 
-	public void setFragmentWindowsOperator (IFragmentWindowsOperator operator, boolean isHashJoin);	
+	public void setAggregateOperator (IAggregateOperator operator);
 
 	public ResultHandler getHandler();
-	
-	public int getParentQueryId();
 }

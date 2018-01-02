@@ -1,8 +1,5 @@
 package uk.ac.imperial.lsds.saber;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -26,21 +23,15 @@ public class PerformanceMonitor implements Runnable {
 		
 	private Measurement [] measurements;
 	
-	private List<Integer> throughputList = null;
-	
-	//private PrintWriter pw;
-	
 	static final Comparator<Query> ordering = new Comparator<Query>() {
 		public int compare(Query q, Query p) {
 			return (q.getId() < p.getId()) ? -1 : 1;
 		}
 	};
 	
-	public PerformanceMonitor (QueryApplication application, List<Integer> throughputList) {
+	public PerformanceMonitor (QueryApplication application) {
 		
 		this.application = application;
-		
-		this.throughputList = throughputList;
 			
 		size = application.getQueries().size();
 		measurements = new Measurement [size];
@@ -48,27 +39,7 @@ public class PerformanceMonitor implements Runnable {
 		Collections.sort(L, ordering);
 		int idx = 0;
 		for (Query query : L) {
-			System.out.println(String.format("[DBG] [MultiOperator] S %3d", query.getId()));
-			measurements[idx++] = 
-				new Measurement (
-					query.getId(), 
-					query.getTaskDispatcher(),
-					query.getLatencyMonitor()
-				);
-		}
-	}
-	
-	public PerformanceMonitor (QueryApplication application) {
-		
-		this.application = application;
-					
-		size = application.getQueries().size();
-		measurements = new Measurement [size];
-		List<Query> L = new ArrayList<Query>(application.getQueries());
-		Collections.sort(L, ordering);
-		int idx = 0;
-		for (Query query : L) {
-			System.out.println(String.format("[DBG] [MultiOperator] S %3d", query.getId()));
+			System.out.println(String.format("[MON] [MultiOperator] S %3d", query.getId()));
 			measurements[idx++] = 
 				new Measurement (
 					query.getId(), 
@@ -79,13 +50,7 @@ public class PerformanceMonitor implements Runnable {
 	}
 	
 	public void run () {
-/*		try {
-			pw = new PrintWriter(new FileOutputStream("/home/george/Desktop/Jupyter Notebook/sampleText.txt", false));
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}*/
-
+		
 		while (true) {
 			
 			try { 
@@ -97,29 +62,10 @@ public class PerformanceMonitor implements Runnable {
 			dt = time - _time;
 			
 			StringBuilder b = new StringBuilder();
-			b.append("[DBG]");
+			b.append("[MON]");
 			
-			double sum = 0;
-			for (int i = 0; i < size; i++) {
+			for (int i = 0; i < size; i++)
 				b.append(measurements[i].info(dt));
-				if (throughputList!=null && !throughputList.isEmpty()) { 
-					if (throughputList.contains(i)) {
-						sum += measurements[i].throughput;
-					}		
-				}
-			}
-			
-			if (throughputList!=null && !throughputList.isEmpty()) { 
-				//System.out.println("The number we are looking for is: " + sum);
-	            String input=""+ counter + ","+ sum;
-	            //System.out.println(input);
-	            counter ++;
-	            //pw.print(input);
-	            //pw.println();
-	            //pw.flush();
-			}
-
-
 			
 			b.append(String.format(" q %6d", application.getExecutorQueueSize()));
 			if (SystemConf.SCHEDULING_POLICY == SystemConf.SchedulingPolicy.HLS)
@@ -140,12 +86,18 @@ public class PerformanceMonitor implements Runnable {
 			
 			_time = time;
 			
-			// if (counter++ > 60) {
-			//	System.out.println("Done.");
-			//	for (int i = 0; i < size; i++)
-			//		measurements[i].stop();
-			//	break;
-			// }
+			if (SystemConf.DURATION > 0) {
+				
+				if (counter++ > SystemConf.DURATION) {
+					
+					for (int i = 0; i < size; i++)
+						measurements[i].stop();
+					
+					System.out.println("[MON] Done.");
+					System.out.flush();
+					break;
+				}
+			}
 		}
 	}
 	
@@ -167,8 +119,6 @@ public class PerformanceMonitor implements Runnable {
 		long bytesGenerated, _bytesGenerated = 0;
 		
 		double MBpsProcessed, MBpsGenerated;
-		
-		double throughput = 0;
 
 		public Measurement (int id, ITaskDispatcher dispatcher, LatencyMonitor monitor) {
 			this.id = id;
@@ -205,8 +155,6 @@ public class PerformanceMonitor implements Runnable {
 				
 				MBpsProcessed = (bytesProcessed - _bytesProcessed) / _1MB_ / Dt;
 				MBpsGenerated = (bytesGenerated - _bytesGenerated) / _1MB_ / Dt;
-				
-				this.throughput = MBpsProcessed;
 				
 				s = String.format(" S%03d %10.3f MB/s output %10.3f MB/s [%s]", 
 					id, 

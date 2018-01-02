@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import uk.ac.imperial.lsds.saber.SystemConf;
 
-public class RelationalTableQueryBuffer implements IQueryBuffer{
+public class RelationalTableQueryBuffer implements IQueryBuffer {
 	
 	private static final int _default_capacity = SystemConf.RELATIONAL_TABLE_BUFFER_SIZE;
 	
@@ -96,6 +96,16 @@ public class RelationalTableQueryBuffer implements IQueryBuffer{
 		return buffer.getLong(normalise(offset));
 	}
 	
+	public long getMSBLongLong (int offset) {
+
+		return buffer.getLong(normalise(offset));
+	}
+	
+	public long getLSBLongLong (int offset) {
+
+		return buffer.getLong(normalise(offset) + 8);
+	}
+	
 	public byte [] array () {
 		
 		if (isDirect)
@@ -172,6 +182,16 @@ public class RelationalTableQueryBuffer implements IQueryBuffer{
 	public int putLong (int index, long value) {
 		
 		throw new UnsupportedOperationException("error: cannot put value to a relational table buffer");
+	}
+
+	public int putLongLong (long msbValue, long lsbValue) {
+		
+		throw new UnsupportedOperationException("error: cannot put value to a circular buffer");
+	}
+	
+	public int putLongLong (int index, long msbValue, long lsbValue) {
+		
+		throw new UnsupportedOperationException("error: cannot put value to a circular buffer");
 	}
 	
 	public int put (byte [] values) {

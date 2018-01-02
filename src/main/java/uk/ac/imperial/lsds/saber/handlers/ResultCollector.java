@@ -1,8 +1,5 @@
 package uk.ac.imperial.lsds.saber.handlers;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintWriter;
 import java.util.concurrent.locks.LockSupport;
 
 import uk.ac.imperial.lsds.saber.Query;
@@ -10,23 +7,9 @@ import uk.ac.imperial.lsds.saber.SystemConf;
 import uk.ac.imperial.lsds.saber.Utils;
 import uk.ac.imperial.lsds.saber.WindowBatch;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
-import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
+// import uk.ac.imperial.lsds.saber.monetdb.MonetDBExperimentalSetup;
 
 public class ResultCollector {
-	
-	private static long time;
-	private static long _time;
-	private static double dt;
-	//private static PrintWriter pw;
-	
-	public ResultCollector() {
-		_time = System.nanoTime();
-/*		try {
-			pw = new PrintWriter(new FileOutputStream("/home/george/Desktop/Jupyter Notebook/latency.txt", false));
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}*/
-	}
 	
 	public static void forwardAndFree (ResultHandler handler, WindowBatch batch1) {
 		
@@ -159,13 +142,6 @@ public class ResultCollector {
 					if (SystemConf.LATENCY_ON && (handler.mark[handler.next] != -1)) {
 						query.getLatencyMonitor().monitor(handler.freeBuffer1, handler.mark[handler.next]);
 					}
-					time = System.nanoTime();
-					dt = ((double)(time - _time))/1000000000;
-					//System.out.println("The latency is: " + dt);
-		            //pw.print(dt);
-		            //pw.println();
-		            //pw.flush();
-					_time = time;
 				}
 				
 				/* 
@@ -190,6 +166,7 @@ public class ResultCollector {
 				/* Release the current slot */
 				handler.slots.set(handler.next, -1);
 				
+				/*
 				if (MonetDBExperimentalSetup.enabled) {
 					if (handler.next == MonetDBExperimentalSetup.numberOfTasks - 1) {
 						long dt = System.nanoTime() - MonetDBExperimentalSetup.startTime;
@@ -197,6 +174,7 @@ public class ResultCollector {
 						System.out.println(String.format("[DBG] %d output bytes", handler.getTotalOutputBytes()));
 					}
 				}
+				*/
 				
 				/* Increment next */
 				handler.next = handler.next + 1;
