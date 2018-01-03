@@ -3,9 +3,6 @@ package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
-import uk.ac.imperial.lsds.saber.ITupleSchema;
 
 public class Generator {
 	
@@ -37,7 +34,7 @@ public class Generator {
 		
 		timestamp = 0;
 		count = 0;
-		limit = 10000; /* TODO */
+		limit = 1; /* TODO */
 		
 		int inputTupleSize = 128; //inputSchema.getTupleSize()
 		createPositionsList(inputTupleSize);		
@@ -92,6 +89,7 @@ public class Generator {
 		/* Set time stamp */
 		if (count >= limit) {
 			count = 0;
+			//System.out.println("Timestamp is " + timestamp);
 			timestamp ++;
 		}
 		/* Buffer swap */
@@ -112,6 +110,7 @@ public class Generator {
 		
 		/* Unblock all workers */
 		next = (next + 1) & (buffers.length - 1);
+		count++;
 	}
 
 	public void createPositionsList (int inputTupleSize) {

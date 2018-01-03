@@ -6,6 +6,15 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+import uk.ac.imperial.lsds.saber.ITupleSchema;
+import uk.ac.imperial.lsds.saber.QueryConf;
+import uk.ac.imperial.lsds.saber.SystemConf;
+import uk.ac.imperial.lsds.saber.TupleSchema;
+import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
+import uk.ac.imperial.lsds.saber.devices.TheCPU;
+import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmark;
+import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.InputStreamGenerator;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
@@ -13,9 +22,94 @@ import java.io.InputStreamReader;
 
 public class InputStreamClient {
 	
+	@SuppressWarnings("unused")
 	private static final String usage = "usage: java InputStreamClient";
 	
+	public static ITupleSchema createInputStreamSchema () {
+		
+		int [] offsets = new int [7];
+		
+		offsets[0] =  0; /* Event Time Timestamp:	long */
+		offsets[1] =  8; /* User Id:   				uuid */		
+		offsets[2] = 24; /* Page Id: 				uuid */
+		offsets[3] = 40; /* Ad Id:   				uuid */  
+		offsets[4] = 56; /* Ad Type:                 int */  // (0, 1, 2, 3, 4): ("banner", "modal", "sponsored-search", "mail", "mobile") 
+		                                                     // => 16 bytes required if UTF-8 encoding is used
+		offsets[5] = 60; /* Event Type:              int */  // (0, 1, 2)      : ("view", "click", "purchase")
+		                                                     // => 8 bytes required if UTF-8 encoding is used
+		offsets[6] = 64; /* IP Address:              int */  // 255.255.255.255 => Either 4 bytes (IPv4) or 16 bytes (IPv6)
+				
+		ITupleSchema schema = new TupleSchema (offsets, 68);
+		
+		/* 0:undefined 1:int, 2:float, 3:long, 4:longlong*/
+		schema.setAttributeType (0, PrimitiveType.LONG 	   );
+		schema.setAttributeType (1, PrimitiveType.LONGLONG );
+		schema.setAttributeType (2, PrimitiveType.LONGLONG );
+		schema.setAttributeType (3, PrimitiveType.LONGLONG );
+		schema.setAttributeType (4, PrimitiveType.INT  	   );
+		schema.setAttributeType (5, PrimitiveType.INT      );
+		schema.setAttributeType (6, PrimitiveType.INT      );
+		
+		schema.setAttributeName (0, "timestamp"); // timestamp
+		schema.setAttributeName (1, "user_id");
+		schema.setAttributeName (2, "page_id");
+		schema.setAttributeName (3, "ad_id");
+		schema.setAttributeName (4, "ad_type");
+		schema.setAttributeName (5, "event_type");
+		schema.setAttributeName (6, "ip_address");	
+		
+		//schema.setName("InputStream");
+		return schema;
+	}
+
+	public static void generateData() {
+		int batchSize = 1048576;
+		int numberOfThreads = 7;
+		String executionMode = "cpu";
+		int circularBufferSize = 64 * 1048576;
+		int unboundedBufferSize = 1 * 1048576 ;
+		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
+		int partialWindows = 4; 	
+		QueryConf queryConf = new QueryConf (batchSize);		
+		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
+		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;		
+		SystemConf.HASH_TABLE_SIZE = hashTableSize;		
+		SystemConf.PARTIAL_WINDOWS = partialWindows;		
+		SystemConf.SWITCH_THRESHOLD = 10;		
+		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;		
+		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
+		if (executionMode.toLowerCase().contains("cpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.CPU = true;
+		if (executionMode.toLowerCase().contains("gpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.GPU = true;
+		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
+		SystemConf.THREADS = numberOfThreads;
+		SystemConf.LATENCY_ON = false;		
+		
+		// Initialize the Operators of the Benchmark
+		YahooBenchmark benchmarkQuery = new YahooBenchmark (queryConf);
+		
+		/* Create Input Schema */
+		ITupleSchema inputSchema = createInputStreamSchema();
+		/* Generate input stream */
+		//ITupleSchema schemaToGenerate = benchmarkQuery.getSchema();
+		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
+		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
+		
+		int records = 50000000; 	// recordsPerSecond =  5000000 or 80000000
+		
+		boolean realtime = true;
+		System.out.println("Generating data...");
+		InputStreamGenerator gen = new InputStreamGenerator(inputSchema, adsPerCampaign, records, ads, true);
+		gen.generateDummyInputFile(realtime);
+		System.out.println("Data is generated!");
+		//long timestampReference = gen.getTimestampReference();		
+	}
+	
 	public static void main (String[] args) {
+		
+		// Bind the Client Side in the last core
+		TheCPU.getInstance().bind(15);
 		
 		String hostname = "localhost";
 		int port = 6667;
@@ -30,7 +124,13 @@ public class InputStreamClient {
 		
 		int L = 1;
 		
-		String filename = "datafile20seconds.dat";
+		// Generate Data
+		boolean generate = true;
+		if (generate) {
+			generateData();
+		}
+		
+		String filename = "datafile5000000RecordsPerSecond.dat";
 		
 		FileInputStream f;
 		DataInputStream d;
@@ -50,35 +150,7 @@ public class InputStreamClient {
 		double MBps; /* MB/sec */
 		long totalTuples = 0;
 		
-		long wrongTuples = 0L;
-		
-		/* Parse command line arguments */
-		int i, j;
-		for (i = 0; i < args.length; ) {
-			if ((j = i + 1) == args.length) {
-				System.err.println(usage);
-				System.exit(1);
-			}
-			if (args[i].equals("-h")) { 
-				hostname = args[j];
-			} else
-			if (args[i].equals("-p")) { 
-				port = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("-b")) { 
-				bundle = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("-L")) { 
-				L = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("-f")) { 
-				filename = args[j];
-			} else {
-				System.err.println(String.format("error: unknown flag %s %s", args[i], args[j]));
-				System.exit(1);
-			}
-			i = j + 1;
-		}
+		long wrongTuples = 0L;		
 		
 		InputStreamTuple tuple = new InputStreamTuple ();
 		
@@ -94,7 +166,8 @@ public class InputStreamClient {
 				;
 			
 			/* Load file into memory */
-			f = new FileInputStream("/home/george/Calcite-Saber/"+filename);
+			String path = "/home/grt17/saber/yahoo_benchmark_saber/src/test/java/uk/ac/imperial/lsds/saber/experiments/benchmarks/yahoo/utils/";
+			f = new FileInputStream(path + filename);
 			d = new DataInputStream(f);
 			b = new BufferedReader(new InputStreamReader(d));
 			
@@ -179,7 +252,7 @@ public class InputStreamClient {
 			while (data.hasRemaining()) {
 				data.get(t);
 				totalTuples += 1;
-				for (i = 0; i < L; i++) {
+				for (int i = 0; i < L; i++) {
 					buffer.put(t);
 					//ByteBuffer.wrap(t).putInt(20, i + 1); /* Position 20 is the highway id */
 					

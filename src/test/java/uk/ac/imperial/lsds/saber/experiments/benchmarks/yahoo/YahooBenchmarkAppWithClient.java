@@ -18,7 +18,6 @@ public class YahooBenchmarkAppWithClient {
 	
 	public static void main (String [] args) {
 
-        //================================================================================
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
 		String hostname = "localhost";
@@ -31,52 +30,6 @@ public class YahooBenchmarkAppWithClient {
 		int unboundedBufferSize = 1 * 1048576 ;
 		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
 		int partialWindows = 4; // 64; // 1048576;
-		
-		int i, j;
-		for (i = 0; i < args.length; ) {
-			if ((j = i + 1) == args.length) {
-				System.err.println(usage);
-				System.exit(1);
-			}
-			if (args[i].equals("--mode")) { 
-				executionMode = args[j];
-			} else
-			if (args[i].equals("--threads")) {
-				numberOfThreads = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--batch-size")) { 
-				batchSize = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--circ-buffer-size")) { 
-				circularBufferSize = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--unbounded-buffer-size")) { 
-				unboundedBufferSize = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--hash-table-size")) { 
-				hashTableSize = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--partial-windows")) { 
-				partialWindows = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--scheduling-policy")) { 
-				SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.FIFO;
-			} else
-			if (args[i].equals("--host")) { 
-				hostname = args[j];
-			} else
-			if (args[i].equals("--port")) { 
-				port = Integer.parseInt(args[j]);
-			} else
-			if (args[i].equals("--bundle-size")) { 
-				bundle = Integer.parseInt(args[j]);
-			} else {
-				System.err.println(String.format("error: unknown flag %s %s", args[i], args[j]));
-				System.exit(1);
-			}
-			i = j + 1;
-		}
-		//================================================================================
 		
 		
 		
@@ -109,6 +62,7 @@ public class YahooBenchmarkAppWithClient {
 		System.out.println(String.format("[DBG] %6d bytes/buffer", networkBufferSize));
 		//================================================================================
 		
+
 		
 		
 		//================================================================================

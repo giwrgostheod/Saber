@@ -11,7 +11,7 @@ import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.Synchronized
 
 public class YahooBenchmarkApp {
 	
-	public static final String usage = "usage: YahooBenchmarkApp";
+	public static final String usage = "usage: YahooBenchmarkApp with small buffer generator";
 	public static volatile BufferQueue bQueue;
 	
 	public static void main (String [] args) {
@@ -98,8 +98,8 @@ public class YahooBenchmarkApp {
 		//================================================================================
 		/* Generate input stream */
 		int numberOfGeneratorThreads = 4;
-		int tuplesPerSec = 100000000;
-		int tuplesPerInsert = 100000; 
+		//int tuplesPerSec = 100000000;
+		//int tuplesPerInsert = 100000; 
 		ITupleSchema schemaToGenerate = benchmarkQuery.getSchema();
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
@@ -107,7 +107,7 @@ public class YahooBenchmarkApp {
 		//TheCPU.getInstance().bind(0);
 		
 		int bufferSize = 2 * 1048576;
-		int timestampIterations = 8;//64;
+		int timestampIterations = 4; //8;//64;
 		int coreToBind = numberOfThreads + 1;
 		SynchronizedFlag flag = new SynchronizedFlag(false);
 		bQueue = new BufferQueue(numberOfGeneratorThreads, schemaToGenerate, bufferSize, timestampIterations, flag);

@@ -49,11 +49,8 @@ public class GeneratedBuffer {
 		// System.out.println("Latch is set to: " + bufferFilledLatch.getCount());
 	}
 
-	public void decrementLatch () {
-		
-
+	public void decrementLatch () {		
 		bufferFilledLatch.decReaders();
 		// System.out.println("Latch is decreased to: " + bufferFilledLatch.getCount());
-//
 	}
 }

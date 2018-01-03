@@ -38,7 +38,7 @@ import uk.ac.imperial.lsds.saber.processors.HashMap;
 
 public class TestYahooBenchmarkOp {
 	
-	public static final String usage = "usage: TestYahooBenchmarkOp";
+	public static final String usage = "usage: TestYahooBenchmarkOp with in-memory data generation along with the application";
 		
 	public static ITupleSchema createInputStreamSchema () {
 		
@@ -87,7 +87,7 @@ public class TestYahooBenchmarkOp {
 		return schema;
 	}
 	
-	public static void main(String [] args) {
+	public static void main(String [] args) throws Exception {
 		
         //================================================================================
 		/* Parse command line arguments */
@@ -232,7 +232,7 @@ public class TestYahooBenchmarkOp {
 		//================================================================================
 		/* Generate input stream */
 		long[][] ads = campaignGen.getAds();
-		InputStreamGenerator gen = new InputStreamGenerator(inputSchema, adsPerCampaign, tuplesPerInsert, ads);
+		InputStreamGenerator gen = new InputStreamGenerator(inputSchema, adsPerCampaign, tuplesPerInsert, ads, false);
 		ByteBuffer buffer = gen.generateNext(realtime);
 		long timestampReference = gen.getTimestampReference();
 		//================================================================================

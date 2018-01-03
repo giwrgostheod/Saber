@@ -1,20 +1,19 @@
 package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
 
-import uk.ac.imperial.lsds.saber.ITupleSchema;
 import uk.ac.imperial.lsds.saber.QueryConf;
 import uk.ac.imperial.lsds.saber.SystemConf;
 import uk.ac.imperial.lsds.saber.devices.TheCPU;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmark;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmarkQuery;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.BufferNode;
 
 public class TestGenerator {
+	public static final String usage = "usage: YahooBenchmarkApp with simpler in-memory generation";
 	
 	public static void main (String [] args) throws InterruptedException {
-        //================================================================================
+
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
-		int numberOfThreads = 4;
+		int numberOfThreads = 7;
 		int batchSize = 1048576;
 		String executionMode = "cpu";
 		int circularBufferSize = 64 * 1048576;
@@ -22,7 +21,7 @@ public class TestGenerator {
 		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
 		int partialWindows = 4; // 64; // 1048576;
 		
-		int i, j;
+		
 		// Set SABER's configuration				
 		QueryConf queryConf = new QueryConf (batchSize);		
 		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
@@ -48,25 +47,22 @@ public class TestGenerator {
 		
 		/* Generate input stream */
 		int numberOfGeneratorThreads = 4;
-		int tuplesPerSec = 1000000;
-		int tuplesPerInsert = 100000; 
-		ITupleSchema schemaToGenerate = benchmarkQuery.getSchema();
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
 		TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 8 * 1048576;
-		int timestampIterations = 8;//64;
+		int bufferSize = 4 * 1048576;
 		int coreToBind = numberOfThreads + 1;
 		
 		
-		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, 10);
+		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
 
 		
-		long time2, time1 = System.nanoTime();
+/*		long time2, time1 = System.nanoTime();
 		double throughput, dt;
-		long sum = 0;
+		long sum = 0;*/
+		
 		while (true) {
 			
 			GeneratedBuffer b = generator.getNext();

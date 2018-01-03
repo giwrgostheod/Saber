@@ -10,3 +10,5 @@
 /lib/
 scripts/experiments/
 doc/
+*.dat
+/src/main/java/uk/ac/imperial/lsds/saber/SystemConf.java

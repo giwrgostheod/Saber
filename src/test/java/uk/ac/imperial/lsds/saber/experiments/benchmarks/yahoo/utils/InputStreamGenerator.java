@@ -20,20 +20,28 @@ public class InputStreamGenerator {
 	private long timestampReference = -1L;	
 	private long lastGeneratedTimestamp = 0L;	
 	private long startTimestamp = 0L;
+	private boolean createFile;
 	
 	
-	public InputStreamGenerator (ITupleSchema inputSchema, int adsPerCampaign, int tuplesPerInsert, long [][] ads) {
+	public InputStreamGenerator (ITupleSchema inputSchema, int adsPerCampaign, int tuplesPerInsert, long [][] ads, boolean createFile) {
 		this.inputSchema = inputSchema;
 		this.tuplesPerInsert = tuplesPerInsert;
-		this.data = new byte [inputSchema.getTupleSize() * this.tuplesPerInsert];
-		this.buffer = ByteBuffer.wrap(data);
+		this.createFile = createFile;
+		
+		if (!createFile) {
+			this.data = new byte [inputSchema.getTupleSize() * this.tuplesPerInsert];
+			this.buffer = ByteBuffer.wrap(data);
+		}
 		this.adsPerCampaign = adsPerCampaign;
 		this.ads = ads;
 		this.timestampReference = System.nanoTime();
 		this.startTimestamp = 0L;
 	}
 
-	public ByteBuffer generateNext (boolean realtime) {		
+	public ByteBuffer generateNext (boolean realtime) throws Exception {	
+		
+		if (createFile)
+			throw new Exception("There is no buffer instatiated, as the generator was created to generate a file.");
 		
 		//buffer.clear();
 		/* Fill the buffer */	
@@ -88,7 +96,11 @@ public class InputStreamGenerator {
 		return buffer;
 	}
 	
-	public ByteBuffer updateTimestamps (boolean realtime) {
+	public ByteBuffer updateTimestamps (boolean realtime) throws Exception {
+		
+		if (createFile)
+			throw new Exception("There is no buffer instatiated, as the generator was created to generate a file.");
+		
 		int i = 0;
 		if (buffer.position() != buffer.capacity()) {
 			System.err.println("Unlikely error");
