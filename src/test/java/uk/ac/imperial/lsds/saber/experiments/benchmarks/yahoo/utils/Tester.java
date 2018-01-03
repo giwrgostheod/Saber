@@ -14,7 +14,7 @@ public class Tester {
 	public static void main(String[] args) {
 		
 		QueryConf queryConf = new QueryConf (1048576);		
-		benchmarkQuery = new YahooBenchmark (queryConf);
+		benchmarkQuery = new YahooBenchmark (queryConf, true);
 		
 		boolean isDirect = false;
 		int bufferSize = 8 * 1048576;

@@ -38,14 +38,14 @@ public class YahooBenchmark extends InputStream {
 	private int adsPerCampaign;
 
 	
-	public YahooBenchmark (QueryConf queryConf) {
+	public YahooBenchmark (QueryConf queryConf, boolean isExecuted) {
 		adsPerCampaign = 10;
 		createSchema ();
-		createApplication (queryConf);
+		createApplication (queryConf, isExecuted);
 	}
 	
 	@Override
-	public void createApplication (QueryConf queryConf) {
+	public void createApplication (QueryConf queryConf, boolean isExecuted) {
 		
         //================================================================================
 		long timestampReference = System.nanoTime(); //Fix this
@@ -154,16 +154,17 @@ public class YahooBenchmark extends InputStream {
 		queries.add(query2);
 		query1.connectTo(query2);
 		// ...
+
+		if (isExecuted) {
+			application = new QueryApplication(queries);
+			application.setup();
 		
-		application = new QueryApplication(queries);
-		
-		application.setup();
-		
-		/* The path is query -> dispatcher -> handler -> aggregator */
-		if (SystemConf.CPU)
-			query2.setAggregateOperator((IAggregateOperator) cpuCode);
-		else
-			query2.setAggregateOperator((IAggregateOperator) gpuCode);
+			/* The path is query -> dispatcher -> handler -> aggregator */
+			if (SystemConf.CPU)
+				query2.setAggregateOperator((IAggregateOperator) cpuCode);
+			else
+				query2.setAggregateOperator((IAggregateOperator) gpuCode);
+		}
 		//================================================================================
 		
 		return;

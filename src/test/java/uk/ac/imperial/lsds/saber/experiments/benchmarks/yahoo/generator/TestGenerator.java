@@ -42,7 +42,7 @@ public class TestGenerator {
 		
 		
 		// Initialize the Operators of the Benchmark
-		benchmarkQuery = new YahooBenchmark (queryConf);
+		benchmarkQuery = new YahooBenchmark (queryConf, true);
 			
 		
 		/* Generate input stream */

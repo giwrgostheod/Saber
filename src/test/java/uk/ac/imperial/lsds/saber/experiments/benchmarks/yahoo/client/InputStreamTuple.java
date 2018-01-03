@@ -47,7 +47,7 @@ public class InputStreamTuple {
 		t.adType                   = Integer.parseInt(s[7]);
 		t.eventType                = Integer.parseInt(s[8]);
 		t.ipAddress				   = Integer.parseInt(s[9]);
-		t.queryId                  = Integer.parseInt(s[10]);
+		//t.queryId                  = Integer.parseInt(s[10]);
 	}
 	
 	public long  getTimestamp()                  { return             timestamp; }

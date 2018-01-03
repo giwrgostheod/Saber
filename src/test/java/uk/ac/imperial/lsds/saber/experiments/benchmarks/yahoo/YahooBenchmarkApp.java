@@ -90,7 +90,7 @@ public class YahooBenchmarkApp {
 		
 		//================================================================================
 		// Initialize the Operators of the Benchmark
-		benchmarkQuery = new YahooBenchmark (queryConf);
+		benchmarkQuery = new YahooBenchmark (queryConf, true);
 		//================================================================================
 		
 		

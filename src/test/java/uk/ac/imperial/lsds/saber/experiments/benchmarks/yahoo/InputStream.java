@@ -15,7 +15,7 @@ public abstract class InputStream implements YahooBenchmarkQuery {
 		return application;
 	}
 	
-	public abstract void createApplication (QueryConf queryConf);
+	public abstract void createApplication (QueryConf queryConf, boolean isExecuted);
 	
 	public ITupleSchema getSchema () {
 		if (schema == null)

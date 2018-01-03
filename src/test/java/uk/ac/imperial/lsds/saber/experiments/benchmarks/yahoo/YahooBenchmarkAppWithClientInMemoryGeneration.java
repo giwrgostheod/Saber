@@ -2,17 +2,14 @@ package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Iterator;
-import java.util.Set;
+
 
 import uk.ac.imperial.lsds.saber.QueryConf;
 import uk.ac.imperial.lsds.saber.SystemConf;
 
-public class YahooBenchmarkAppWithClient {
+public class YahooBenchmarkAppWithClientInMemoryGeneration {
 	
 	public static final String usage = "usage: YahooBenchmarkApp";
 	
@@ -22,9 +19,9 @@ public class YahooBenchmarkAppWithClient {
 		YahooBenchmarkQuery benchmarkQuery = null;
 		String hostname = "localhost";
 		int port = 6667;
-		int bundle = 512;
-		int batchSize = 1048576;
-		int numberOfThreads = 1;
+		int batchSize = 1048576;		
+		
+		int numberOfThreads = 2;
 		String executionMode = "cpu";
 		int circularBufferSize = 64 * 1048576;
 		int unboundedBufferSize = 1 * 1048576 ;
@@ -33,9 +30,7 @@ public class YahooBenchmarkAppWithClient {
 		
 		
 		
-		//================================================================================
-		// Set SABER's configuration
-				
+		// Set SABER's configuration				
 		QueryConf queryConf = new QueryConf (batchSize);		
 		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
 		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;		
@@ -51,77 +46,45 @@ public class YahooBenchmarkAppWithClient {
 		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
 		SystemConf.THREADS = numberOfThreads;
 		SystemConf.LATENCY_ON = false;
-		//================================================================================
 		
 		
 		
-		//================================================================================
 		// Initialize the Operators of the Benchmark
 		benchmarkQuery = new YahooBenchmark (queryConf, true);
 		int networkBufferSize = 2 * 1048576;//bundle * benchmarkQuery.getSchema().getTupleSize();
-		System.out.println(String.format("[DBG] %6d bytes/buffer", networkBufferSize));
-		//================================================================================
-		
+		System.out.println(String.format("[DBG] %6d bytes/buffer", networkBufferSize));		
 
 		
-		
-		//================================================================================
 		// Begin Execution
 		try {	
 			ServerSocketChannel server = ServerSocketChannel.open();
 			server.bind(new InetSocketAddress (hostname, port));
-			server.configureBlocking(false);
-			
-			Selector selector = Selector.open();
-			/* (SelectionKey) */ server.register(selector, SelectionKey.OP_ACCEPT);
 			
 			System.out.println("[DBG] ^");
 			ByteBuffer buffer = ByteBuffer.allocate (networkBufferSize);
-			while (true) {
 			
-				if (selector.select() == 0)
-					continue;
-				
-				Set<SelectionKey> keys = selector.selectedKeys();
-				Iterator<SelectionKey> iterator = keys.iterator();
-				while (iterator.hasNext()) {
-					
-					SelectionKey key = iterator.next();
-					
-					if (key.isAcceptable()) {
-						
-						System.out.println("[DBG] key is acceptable");
-						ServerSocketChannel _server = (ServerSocketChannel) key.channel();
-						SocketChannel client = _server.accept();
-						if (client != null) {
-							System.out.println("[DBG] accepted client");
-							client.configureBlocking(false);
-							/* (SelectionKey) */ client.register(selector, SelectionKey.OP_READ);
-						}
-					} else if (key.isReadable()) {
-						
-						SocketChannel client = (SocketChannel) key.channel();
+			server.configureBlocking(false);
+			
+			while(true){
+			    SocketChannel socketChannel = server.accept();
+
+			    if (socketChannel != null){
+					while (true) {
+						@SuppressWarnings("unused")
 						int bytes = 0;
-						if((bytes = client.read(buffer)) > 0) {
-							
-							if (! buffer.hasRemaining()) {
+						if((bytes = socketChannel.read(buffer)) > 0) {
+							//System.out.println(String.format("[DBG] %6d bytes received", bytes));
+							if (!buffer.hasRemaining()) {
 								buffer.rewind();
 								benchmarkQuery.getApplication().processData (buffer.array(), buffer.capacity());
 								buffer.clear();
 							}
 						}
-						
-						if (bytes < 0) {
-							System.out.println("[DBG] client connection closed");
-							client.close();
-						}
-					} else {
-						System.err.println("error: unknown selection key");
-						System.exit(1);
+							
 					}
-					iterator.remove();
-				}
+			    }
 			}
+
 		} catch (Exception e) {
 			System.err.println(String.format("error: %s", e.getMessage()));
 			e.printStackTrace();

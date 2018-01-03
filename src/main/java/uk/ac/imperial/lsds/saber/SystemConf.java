@@ -6,7 +6,7 @@ public class SystemConf {
 
 	public static boolean WWW = false;
 
-	public static String SABER_HOME = "/home/grt17/saber/yahoo_benchmark_saber";
+	public static String SABER_HOME = "/home/george/saber/yahoo_benchmark_saber";
 	
 	static {
 		

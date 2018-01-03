@@ -25,7 +25,37 @@ public class InputStreamClient {
 	@SuppressWarnings("unused")
 	private static final String usage = "usage: java InputStreamClient";
 	
-	public static ITupleSchema createInputStreamSchema () {
+	private static YahooBenchmark benchmarkQuery;
+	
+	public static void createBenchmarkQuery () {
+		int batchSize = 1048576;
+		int numberOfThreads = 1;
+		String executionMode = "cpu";
+		int circularBufferSize = 64 * 1048576;
+		int unboundedBufferSize = 1 * 1048576 ;
+		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
+		int partialWindows = 4; 	
+		QueryConf queryConf = new QueryConf (batchSize);		
+		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
+		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;		
+		SystemConf.HASH_TABLE_SIZE = hashTableSize;		
+		SystemConf.PARTIAL_WINDOWS = partialWindows;		
+		SystemConf.SWITCH_THRESHOLD = 10;		
+		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;		
+		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
+		if (executionMode.toLowerCase().contains("cpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.CPU = true;
+		if (executionMode.toLowerCase().contains("gpu") || executionMode.toLowerCase().contains("hybrid"))
+			SystemConf.GPU = true;
+		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
+		SystemConf.THREADS = numberOfThreads;
+		SystemConf.LATENCY_ON = false;		
+		
+		// Initialize the Operators of the Benchmark
+		benchmarkQuery = new YahooBenchmark (queryConf, false);
+	}
+	
+ 	public static ITupleSchema createInputStreamSchema () {
 		
 		int [] offsets = new int [7];
 		
@@ -62,33 +92,7 @@ public class InputStreamClient {
 		return schema;
 	}
 
-	public static void generateData() {
-		int batchSize = 1048576;
-		int numberOfThreads = 7;
-		String executionMode = "cpu";
-		int circularBufferSize = 64 * 1048576;
-		int unboundedBufferSize = 1 * 1048576 ;
-		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
-		int partialWindows = 4; 	
-		QueryConf queryConf = new QueryConf (batchSize);		
-		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
-		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;		
-		SystemConf.HASH_TABLE_SIZE = hashTableSize;		
-		SystemConf.PARTIAL_WINDOWS = partialWindows;		
-		SystemConf.SWITCH_THRESHOLD = 10;		
-		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;		
-		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
-		if (executionMode.toLowerCase().contains("cpu") || executionMode.toLowerCase().contains("hybrid"))
-			SystemConf.CPU = true;
-		if (executionMode.toLowerCase().contains("gpu") || executionMode.toLowerCase().contains("hybrid"))
-			SystemConf.GPU = true;
-		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
-		SystemConf.THREADS = numberOfThreads;
-		SystemConf.LATENCY_ON = false;		
-		
-		// Initialize the Operators of the Benchmark
-		YahooBenchmark benchmarkQuery = new YahooBenchmark (queryConf);
-		
+	public static void generateData() {	
 		/* Create Input Schema */
 		ITupleSchema inputSchema = createInputStreamSchema();
 		/* Generate input stream */
@@ -96,7 +100,7 @@ public class InputStreamClient {
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
-		int records = 50000000; 	// recordsPerSecond =  5000000 or 80000000
+		int records = 5000000; 	// recordsPerSecond =  5000000 or 80000000
 		
 		boolean realtime = true;
 		System.out.println("Generating data...");
@@ -109,12 +113,16 @@ public class InputStreamClient {
 	public static void main (String[] args) {
 		
 		// Bind the Client Side in the last core
-		TheCPU.getInstance().bind(15);
+		int coreToBind = 5;
+		TheCPU.getInstance().bind(coreToBind);
+		
+		// Initialize the variables required for generating data
+		createBenchmarkQuery();
 		
 		String hostname = "localhost";
 		int port = 6667;
 		
-		int reports = 5000000; // 80000000;
+		int reports = 50000000; // 80000000;
 		int tupleSize = 128;
 		
 		int _BUFFER_ = tupleSize * reports;
@@ -122,10 +130,10 @@ public class InputStreamClient {
 		
 		int bundle = 512;
 		
-		int L = 1;
+		int L = 1;		
 		
 		// Generate Data
-		boolean generate = true;
+		boolean generate = false;//true;
 		if (generate) {
 			generateData();
 		}
@@ -166,7 +174,7 @@ public class InputStreamClient {
 				;
 			
 			/* Load file into memory */
-			String path = "/home/grt17/saber/yahoo_benchmark_saber/src/test/java/uk/ac/imperial/lsds/saber/experiments/benchmarks/yahoo/utils/";
+			String path = "/home/george/saber/yahoo_benchmark_saber/";
 			f = new FileInputStream(path + filename);
 			d = new DataInputStream(f);
 			b = new BufferedReader(new InputStreamReader(d));
@@ -217,24 +225,26 @@ public class InputStreamClient {
 				data.putLong(0L);
 				data.putLong(0L);
 				data.putInt  (0);
-			}
 			
-			d.close();
-			dt = (double ) (System.currentTimeMillis() - start) / 1000.;
-			/* Statistics */
-			rate =  (double) (lines) / dt;
-			MBps = ((double) bytes / _1MB) / dt;
+				
+				d.close();
+				dt = (double ) (System.currentTimeMillis() - start) / 1000.;
+				/* Statistics */
+				rate =  (double) (lines) / dt;
+				MBps = ((double) bytes / _1MB) / dt;
+				
+				System.out.println(String.format("[DBG] %10d lines read", lines));
+				System.out.println(String.format("[DBG] %10d bytes read", bytes));
+				System.out.println(String.format("[DBG] %10d tuples in data buffer", totalTuples));
+				System.out.println();
+				System.out.println(String.format("[DBG] %10.1f seconds", (double) dt));
+				System.out.println(String.format("[DBG] %10.1f tuples/s", rate));
+				System.out.println(String.format("[DBG] %10.1f MB/s", MBps));
+				System.out.println(String.format("[DBG] %10d tuples ignored", wrongTuples));
+				System.out.println();
+			} 
 			
-			System.out.println(String.format("[DBG] %10d lines read", lines));
-			System.out.println(String.format("[DBG] %10d bytes read", bytes));
-			System.out.println(String.format("[DBG] %10d tuples in data buffer", totalTuples));
-			System.out.println();
-			System.out.println(String.format("[DBG] %10.1f seconds", (double) dt));
-			System.out.println(String.format("[DBG] %10.1f tuples/s", rate));
-			System.out.println(String.format("[DBG] %10.1f MB/s", MBps));
-			System.out.println(String.format("[DBG] %10d tuples ignored", wrongTuples));
-			System.out.println();
-		
+			
 			/* Prepare data for reading */
 			data.flip();
 			
@@ -248,7 +258,6 @@ public class InputStreamClient {
 			bytes = 0L;
 			
 			long _bundles = 0L;
-			
 			while (data.hasRemaining()) {
 				data.get(t);
 				totalTuples += 1;
@@ -270,13 +279,14 @@ public class InputStreamClient {
 					}
 				}
 			}
-			
+		
 			/* Sent last (incomplete) bundle */
 			buffer.flip();
 			bytes += channel.write(buffer);
-			
+		
 			System.out.println(String.format("[DBG] %10d tuples processed %d bundles (%d bytes) sent", 
 					totalTuples, _bundles, bytes));
+			
 			System.out.println("Bye.");
 			
 		} catch (Exception e) {
