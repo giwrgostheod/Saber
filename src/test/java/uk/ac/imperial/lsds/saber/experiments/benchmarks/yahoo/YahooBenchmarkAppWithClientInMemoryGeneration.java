@@ -68,6 +68,7 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 			while(true){
 			    SocketChannel socketChannel = server.accept();
 
+			    /*TODO: Pass the campaigns before the other data.*/
 			    if (socketChannel != null){
 					while (true) {
 						@SuppressWarnings("unused")

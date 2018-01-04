@@ -22,7 +22,8 @@ public class InputStreamClientWithDataGeneration {
 		
 		// Bind the Client Side in the last core
 		int coreToBind = 5;
-		
+		TheCPU.getInstance().bind(coreToBind);
+
 		String hostname = "localhost";
 		int port = 6667;
 				
@@ -37,6 +38,7 @@ public class InputStreamClientWithDataGeneration {
 			while (! channel.finishConnect())
 				;
 			
+			
 			/* Generate Campaigns*/
 			IPredicate joinPredicate = new LongLongComparisonPredicate
 					(LongLongComparisonPredicate.EQUAL_OP , new LongLongColumnReference(1), new LongLongColumnReference(0));
@@ -44,11 +46,10 @@ public class InputStreamClientWithDataGeneration {
 			CampaignGenerator campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);	
 			long[][] ads = campaignGen.getAds();
 			
-			/* Generate input stream */
+			/* Define the number of threads that will be used for generation*/
 			int numberOfGeneratorThreads = 2;
 			
-			TheCPU.getInstance().bind(coreToBind);
-			
+			/* Generate input stream */
 			int bufferSize = 2 * 1048576;
 			coreToBind++;			
 			Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
@@ -64,7 +65,9 @@ public class InputStreamClientWithDataGeneration {
 				GeneratedBuffer b = generator.getNext();
 				//System.out.println(String.format("[DBG] %6d bytes created", b.getBuffer().capacity()));
 
-				dataSent = channel.write(b.getBuffer());
+				while (b.getBuffer().hasRemaining())
+					dataSent += channel.write(b.getBuffer());
+				
 				b.getBuffer().clear();
 				
 				//System.out.println(String.format("[DBG] %6d bytes sent", dataSent));
