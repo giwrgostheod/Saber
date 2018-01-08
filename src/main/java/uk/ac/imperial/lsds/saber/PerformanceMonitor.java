@@ -119,6 +119,11 @@ public class PerformanceMonitor implements Runnable {
 		long bytesGenerated, _bytesGenerated = 0;
 		
 		double MBpsProcessed, MBpsGenerated;
+		
+		long time, _time = 0;
+		long timestampReference;
+		double latency, min, max, avg, sum;
+		int count;
 
 		public Measurement (int id, ITaskDispatcher dispatcher, LatencyMonitor monitor) {
 			this.id = id;
@@ -128,6 +133,12 @@ public class PerformanceMonitor implements Runnable {
 			
 			firstBuffer  = this.dispatcher.getFirstBuffer();
 			secondBuffer = this.dispatcher.getSecondBuffer();
+			
+			timestampReference = System.nanoTime();
+			min = Double.MAX_VALUE;
+			max = Double.MIN_VALUE;
+			sum = 0.;
+			count = 1;
 		}
 			
 		public void stop () {
@@ -155,6 +166,25 @@ public class PerformanceMonitor implements Runnable {
 				
 				MBpsProcessed = (bytesProcessed - _bytesProcessed) / _1MB_ / Dt;
 				MBpsGenerated = (bytesGenerated - _bytesGenerated) / _1MB_ / Dt;
+				
+				if (this.id == 1 && MBpsGenerated > 0) {
+					System.out.println("Read Latency!!");
+
+					time = (System.nanoTime() - timestampReference) / 1000L;
+					latency = (time - _time) / 1000.;
+					
+					min = (latency < min) ? latency : min;
+					max = (latency > max) ? latency : max;
+					
+					sum += latency;
+					if (_time > 0) {
+						count++;
+						avg = sum / count;
+					}
+					System.out.format("Latency(ms) %10.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, min, max, avg);
+					System.out.println();
+					_time = time;
+				}
 				
 				s = String.format(" S%03d %10.3f MB/s output %10.3f MB/s [%s]", 
 					id, 

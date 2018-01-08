@@ -100,6 +100,8 @@ public class TestSelection {
 			i = j + 1;
 		}
 		
+		SystemConf.LATENCY_ON = true;
+		
 		SystemConf.dump();
 		
 		QueryConf queryConf = new QueryConf (batchSize);
