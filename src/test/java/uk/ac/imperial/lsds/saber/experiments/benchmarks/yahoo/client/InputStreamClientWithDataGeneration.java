@@ -65,21 +65,9 @@ public class InputStreamClientWithDataGeneration {
 			
 			// Send Campaigns before generating data
 			while(campaigns.hasRemaining())
-				channel.write(campaigns);						
-			channel.close();
+				channel.write(campaigns);									
 			
-			/* Re-establish connection */
-			channel = SocketChannel.open();
-			channel.configureBlocking(true);
-			address = new InetSocketAddress(InetAddress.getByName(hostname), port);
-			/* System.out.println(address); */
-			channel.connect(address);
-			
-			while (! channel.finishConnect())
-				;
-			
-			while (true) {
-				
+			while (true) {				
 				GeneratedBuffer b = generator.getNext();
 				//System.out.println(String.format("[DBG] %6d bytes created", b.getBuffer().capacity()));
 

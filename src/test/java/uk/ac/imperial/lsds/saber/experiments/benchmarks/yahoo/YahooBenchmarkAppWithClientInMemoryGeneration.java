@@ -21,7 +21,7 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 		int port = 6667;
 		int batchSize = 1048576;		
 		
-		int numberOfThreads = 3;
+		int numberOfThreads = 2;
 		String executionMode = "cpu";
 		int circularBufferSize = 64 * 1048576;
 		int unboundedBufferSize = 1 * 1048576 ;
@@ -66,12 +66,12 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 			
 			@SuppressWarnings("unused")
 			int bytes;
-			boolean receivedCampaigns = false;
-			while(!receivedCampaigns){
+			boolean receivedCampaigns = false;			
+			System.out.println(String.format("[DBG] Ready to receive input..."));		
+			while(true){
 			    SocketChannel socketChannel = server.accept();
 
-			    /* Pass the campaigns before the other data.*/
-			    if (socketChannel != null){
+			    if (socketChannel != null){			    	
 			    	
 			    	while(!receivedCampaigns) {			    					
 						bytes = 0;
@@ -85,14 +85,6 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 							}		
 						}
 			    	}
-			    }
-			}
-			
-			System.out.println(String.format("[DBG] Ready to receive input..."));		
-			while(true){
-			    SocketChannel socketChannel = server.accept();
-
-			    if (socketChannel != null){			    	
 			    	
 					while (true) {
 						bytes = 0;
