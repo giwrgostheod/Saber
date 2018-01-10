@@ -91,12 +91,12 @@ public class TestYahooBenchmarkOp {
 		
         //================================================================================
 		/* Parse command line arguments */
-		int numberOfThreads = 1;
+		int numberOfThreads = 8;
 		int batchSize = 1048576;
 		String executionMode = "cpu";
 		int tuplesPerInsert = 1024; 	// recordsPerSecond =  5000000 or 80000000
 		int circularBufferSize = 64 * 1048576;
-		int unboundedBufferSize = 1 * 1048576 / 2;
+		int unboundedBufferSize = 1 * 1048576;
 		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
 		int partialWindows = 4; // 64; // 1048576;
 		int adsPerCampaign = 10;
@@ -212,7 +212,7 @@ public class TestYahooBenchmarkOp {
 		//================================================================================
 		// AGGREGATE (count("*") as count, max(event_time) as 'lastUpdate) 
 		// GROUP BY Campaign_ID with 10 seconds tumbling window
-		WindowDefinition windowDefinition = new WindowDefinition (WindowType.RANGE_BASED, windowSize, windowSize);
+		WindowDefinition windowDefinition = new WindowDefinition (WindowType.ROW_BASED, windowSize, windowSize);
 		AggregationType [] aggregationTypes = new AggregationType [2];
 
 		System.out.println("[DBG] aggregation type is COUNT(*)" );
@@ -311,7 +311,7 @@ public class TestYahooBenchmarkOp {
 				*/
 				
 				/* Update timestamps */
-				buffer = gen.updateTimestamps(realtime);
+				//buffer = gen.updateTimestamps(realtime);
 				
 				//buffer = gen.generateNext();
 				

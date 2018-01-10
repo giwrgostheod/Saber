@@ -84,6 +84,7 @@ public class YahooBenchmarkApp {
 		SystemConf.HYBRID = SystemConf.CPU && SystemConf.GPU;
 		SystemConf.THREADS = numberOfThreads;
 		SystemConf.LATENCY_ON = false;
+		SystemConf.PERFORMANCE_MONITOR_INTERVAL = 1000L;
 		//================================================================================
 		
 		
@@ -97,7 +98,7 @@ public class YahooBenchmarkApp {
 		
 		//================================================================================
 		/* Generate input stream */
-		int numberOfGeneratorThreads = 4;
+		int numberOfGeneratorThreads = 3;
 		//int tuplesPerSec = 100000000;
 		//int tuplesPerInsert = 100000; 
 		ITupleSchema schemaToGenerate = benchmarkQuery.getSchema();

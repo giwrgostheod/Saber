@@ -122,7 +122,7 @@ public class PerformanceMonitor implements Runnable {
 		
 		long time, _time = 0;
 		long timestampReference;
-		double latency, min, max, avg, sum;
+		double latency, min, max, avg, sum, deltaLatency, deltaHelper;
 		int count;
 
 		public Measurement (int id, ITaskDispatcher dispatcher, LatencyMonitor monitor) {
@@ -139,6 +139,8 @@ public class PerformanceMonitor implements Runnable {
 			max = Double.MIN_VALUE;
 			sum = 0.;
 			count = 1;
+			deltaLatency = 0;
+			deltaHelper = 0;
 		}
 			
 		public void stop () {
@@ -167,8 +169,8 @@ public class PerformanceMonitor implements Runnable {
 				MBpsProcessed = (bytesProcessed - _bytesProcessed) / _1MB_ / Dt;
 				MBpsGenerated = (bytesGenerated - _bytesGenerated) / _1MB_ / Dt;
 				
+				deltaHelper++;
 				if (this.id == 1 && MBpsGenerated > 0) {
-					System.out.println("Read Latency!!");
 
 					time = (System.nanoTime() - timestampReference) / 1000L;
 					latency = (time - _time) / 1000.;
@@ -179,9 +181,13 @@ public class PerformanceMonitor implements Runnable {
 					sum += latency;
 					if (_time > 0) {
 						count++;
-						avg = sum / count;
+						avg = sum / count;						
 					}
-					System.out.format("Latency(ms) %10.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, min, max, avg);
+					
+					deltaLatency = latency - deltaHelper * SystemConf.PERFORMANCE_MONITOR_INTERVAL;
+					deltaHelper = 0;
+					
+					System.out.format("Latency(ms) %10.3f, Delta %10.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, deltaLatency, min, max, avg);
 					System.out.println();
 					_time = time;
 				}

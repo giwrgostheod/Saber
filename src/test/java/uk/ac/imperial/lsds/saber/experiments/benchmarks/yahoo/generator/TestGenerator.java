@@ -46,13 +46,13 @@ public class TestGenerator {
 			
 		
 		/* Generate input stream */
-		int numberOfGeneratorThreads = 4;
+		int numberOfGeneratorThreads = 3;
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
 		TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 4 * 1048576;
+		int bufferSize = 5 * 1048576;
 		int coreToBind = numberOfThreads + 1;
 		
 		
