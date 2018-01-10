@@ -2,7 +2,7 @@ package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.client;
 
 import java.net.InetSocketAddress;
 import java.net.InetAddress;
-
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import uk.ac.imperial.lsds.saber.cql.expressions.longlongs.LongLongColumnReference;
@@ -45,6 +45,8 @@ public class InputStreamClientWithDataGeneration {
 			int adsPerCampaign = 10;
 			CampaignGenerator campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);	
 			long[][] ads = campaignGen.getAds();
+			ByteBuffer campaigns = campaignGen.getRelationBuffer().getByteBuffer();
+			campaigns.flip();
 			
 			/* Define the number of threads that will be used for generation*/
 			int numberOfGeneratorThreads = 2;
@@ -60,8 +62,24 @@ public class InputStreamClientWithDataGeneration {
 			// Generate data in-memory and send them with network
 			
 			channel.socket().setSendBufferSize(bufferSize);
+			
+			// Send Campaigns before generating data
+			while(campaigns.hasRemaining())
+				channel.write(campaigns);						
+			channel.close();
+			
+			/* Re-establish connection */
+			channel = SocketChannel.open();
+			channel.configureBlocking(true);
+			address = new InetSocketAddress(InetAddress.getByName(hostname), port);
+			/* System.out.println(address); */
+			channel.connect(address);
+			
+			while (! channel.finishConnect())
+				;
+			
 			while (true) {
-
+				
 				GeneratedBuffer b = generator.getNext();
 				//System.out.println(String.format("[DBG] %6d bytes created", b.getBuffer().capacity()));
 

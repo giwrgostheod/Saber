@@ -1,5 +1,6 @@
 package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo;
 
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -39,13 +40,21 @@ public class YahooBenchmark extends InputStream {
 
 	
 	public YahooBenchmark (QueryConf queryConf, boolean isExecuted) {
-		adsPerCampaign = 10;
-		createSchema ();
-		createApplication (queryConf, isExecuted);
+		this(queryConf, isExecuted, null);
 	}
 	
-	@Override
+	public YahooBenchmark (QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns) {
+		adsPerCampaign = 10;
+		createSchema ();
+		createApplication (queryConf, isExecuted, campaigns);
+	}
+	
 	public void createApplication (QueryConf queryConf, boolean isExecuted) {
+		this.createApplication(queryConf, isExecuted, null);
+	}
+	
+	public void createApplication(QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns) {
+
 		
         //================================================================================
 		long timestampReference = System.nanoTime(); //Fix this
@@ -84,7 +93,13 @@ public class YahooBenchmark extends InputStream {
 				
 		/* Generate Campaigns' ByteBuffer and HashTable */
 		// WindowHashTable relation = CampaignGenerator.generate();
-		CampaignGenerator campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);	
+		
+		CampaignGenerator campaignGen = null;
+		if (campaigns.equals(null) || campaigns == null)
+			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);
+		else
+			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate, campaigns);
+
 		ITupleSchema relationSchema = campaignGen.getCampaignsSchema();
 		IQueryBuffer relationBuffer = campaignGen.getRelationBuffer();
 		this.ads = campaignGen.getAds();

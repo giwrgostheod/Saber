@@ -1,5 +1,7 @@
 package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo;
 
+import java.nio.ByteBuffer;
+
 import uk.ac.imperial.lsds.saber.ITupleSchema;
 import uk.ac.imperial.lsds.saber.QueryApplication;
 import uk.ac.imperial.lsds.saber.QueryConf;
@@ -16,6 +18,7 @@ public abstract class InputStream implements YahooBenchmarkQuery {
 	}
 	
 	public abstract void createApplication (QueryConf queryConf, boolean isExecuted);
+	public abstract void createApplication (QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns);
 	
 	public ITupleSchema getSchema () {
 		if (schema == null)

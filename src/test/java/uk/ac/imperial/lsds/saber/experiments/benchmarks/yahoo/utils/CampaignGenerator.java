@@ -42,6 +42,23 @@ public class CampaignGenerator {
 		createHashMap(relationBuffer, offset);
 		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
 	}
+	
+	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate, ByteBuffer campaigns) {
+		
+		this.adsPerCampaign = adsPerCampaign;
+		this.campaignsSchema = createCampaignsSchema();
+		this.adsArray = new long [100 * adsPerCampaign][2];
+		
+		/* Generate the campaigns and their ads*/
+		fillAdsArray(campaigns); 
+		//generateBufferIncrementally();
+		
+		/* Create Hash Table*/
+		int column = ((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
+		int offset = campaignsSchema.getAttributeOffset(column);
+		createHashMap(relationBuffer, offset);
+		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
+	}
 
 	/* 100 = The number of campaigns to generate events for */
 	public static ITupleSchema createCampaignsSchema () {
@@ -153,6 +170,29 @@ public class CampaignGenerator {
 		this.relationBuffer = new RelationalTableQueryBuffer(0, SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false);
 		
 		this.relationBuffer.put(data, data.length);		
+	}
+	
+	private void fillAdsArray(ByteBuffer campaigns) {
+		/* Reset tuple size */
+		int campaignsTupleSize = campaignsSchema.getTupleSize();
+		
+		/* set the size of the relational table*/
+		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = campaignsTupleSize * 100 * adsPerCampaign;
+		
+		byte [] data = campaigns.array();
+		
+		/* Fill the array */			
+		for (int i = 0 ; i < 100 * adsPerCampaign; i++) {
+			// fill the array with all the possible ads
+			this.adsArray[i][0] = campaigns.getLong();
+			this.adsArray[i][1] = campaigns.getLong();
+			
+			campaigns.position(campaigns.position() + 16);			
+		}
+		
+		this.relationBuffer = new RelationalTableQueryBuffer(0, SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false);
+		
+		this.relationBuffer.put(data, data.length);	
 	}
 	
 	public void createRelationalHashTable(IQueryBuffer relationBuffer, int offset) {

@@ -17,11 +17,11 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
-		String hostname = "192.168.10.98";//"localhost";
+		String hostname = "localhost";//"192.168.10.98";
 		int port = 6667;
 		int batchSize = 1048576;		
 		
-		int numberOfThreads = 2;
+		int numberOfThreads = 3;
 		String executionMode = "cpu";
 		int circularBufferSize = 64 * 1048576;
 		int unboundedBufferSize = 1 * 1048576 ;
@@ -47,14 +47,12 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 		SystemConf.THREADS = numberOfThreads;
 		SystemConf.LATENCY_ON = false;
 		
-		
-		
-		// Initialize the Operators of the Benchmark
-		benchmarkQuery = new YahooBenchmark (queryConf, true);
 		int networkBufferSize = 2 * 1048576;//bundle * benchmarkQuery.getSchema().getTupleSize();
-		System.out.println(String.format("[DBG] %6d bytes/buffer", networkBufferSize));		
+		System.out.println(String.format("[DBG] Initializing the server side..."));		
+		System.out.println(String.format("[DBG] The size of the buffer used for incoming data is %6d", networkBufferSize));		
 
 		
+		System.out.println(String.format("[DBG] Waiting for incoming connections..."));		
 		// Begin Execution
 		try {	
 			ServerSocketChannel server = ServerSocketChannel.open();
@@ -62,17 +60,42 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 			
 			System.out.println("[DBG] ^");
 			ByteBuffer buffer = ByteBuffer.allocate (networkBufferSize);
+			ByteBuffer campaigns = ByteBuffer.allocate (32 * 1000);
 			
 			server.configureBlocking(false);
 			
+			@SuppressWarnings("unused")
+			int bytes;
+			boolean receivedCampaigns = false;
+			while(!receivedCampaigns){
+			    SocketChannel socketChannel = server.accept();
+
+			    /* Pass the campaigns before the other data.*/
+			    if (socketChannel != null){
+			    	
+			    	while(!receivedCampaigns) {			    					
+						bytes = 0;
+						if((bytes = socketChannel.read(campaigns)) > 0) {
+							if (!campaigns.hasRemaining()) {
+								campaigns.flip();
+				    			// Initialize the Operators of the Benchmark
+				    			benchmarkQuery = new YahooBenchmark (queryConf, true, campaigns);
+								System.out.println(String.format("[DBG] Read the campaigns along with their ads."));		
+				    			receivedCampaigns = true;
+							}		
+						}
+			    	}
+			    }
+			}
+			
+			System.out.println(String.format("[DBG] Ready to receive input..."));		
 			while(true){
 			    SocketChannel socketChannel = server.accept();
 
-			    /*TODO: Pass the campaigns before the other data.*/
-			    if (socketChannel != null){
+			    if (socketChannel != null){			    	
+			    	
 					while (true) {
-						@SuppressWarnings("unused")
-						int bytes = 0;
+						bytes = 0;
 						if((bytes = socketChannel.read(buffer)) > 0) {
 							//System.out.println(String.format("[DBG] %6d bytes received", bytes));
 							if (!buffer.hasRemaining()) {
