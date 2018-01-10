@@ -13,7 +13,7 @@ public class TestGenerator {
 
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
-		int numberOfThreads = 7;
+		int numberOfThreads = 5;
 		int batchSize = 1048576;
 		String executionMode = "cpu";
 		int circularBufferSize = 64 * 1048576;
@@ -46,7 +46,7 @@ public class TestGenerator {
 			
 		
 		/* Generate input stream */
-		int numberOfGeneratorThreads = 3;
+		int numberOfGeneratorThreads = 1;
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
@@ -63,9 +63,10 @@ public class TestGenerator {
 		double throughput, dt;
 		long sum = 0;*/
 		
+		GeneratedBuffer b = generator.getNext();
 		while (true) {
 			
-			GeneratedBuffer b = generator.getNext();
+			//GeneratedBuffer b = generator.getNext();
 			benchmarkQuery.getApplication().processData (b.getBuffer().array());
 
 /*			sum += b.getBuffer().capacity() / 128;
@@ -79,7 +80,7 @@ public class TestGenerator {
 				sum = 0;
 			}*/
 			
-			b.unlock();
+			//b.unlock();
 			
 		}
 	}

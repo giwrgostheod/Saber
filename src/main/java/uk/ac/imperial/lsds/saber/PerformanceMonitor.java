@@ -1,9 +1,11 @@
 package uk.ac.imperial.lsds.saber;
 
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.PartialWindowResultsFactory;
@@ -158,14 +160,15 @@ public class PerformanceMonitor implements Runnable {
 			
 			String s = "";
 			
+			NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+		    String numberAsString;
+		    
 			bytesProcessed = firstBuffer.getBytesProcessed();
 			if (secondBuffer != null)
 				bytesProcessed += secondBuffer.getBytesProcessed();
 			
 			bytesGenerated = dispatcher.getBytesGenerated();
-			
-			throughputCounter++;
-			
+						
 			if (_bytesProcessed > 0) {
 				
 				Dt = (delta / 1000.0);
@@ -174,11 +177,12 @@ public class PerformanceMonitor implements Runnable {
 				MBpsGenerated = (bytesGenerated - _bytesGenerated) / _1MB_ / Dt;
 				
 				// TODO: Measure only the sources
+				throughputCounter++;
 				if (this.id == 0) {
 					throughputSum += MBpsProcessed;
 					thoughputAvg = ((throughputSum / throughputCounter) * _1MB_) / 128; // tuple size to get the records per second
-					System.out.format("Throughput Average(records/sec) %10.3f", thoughputAvg);
-					System.out.println();
+					numberAsString = numberFormat.format((double) thoughputAvg);
+					System.out.println("Throughput Average(records/sec) " + numberAsString);				
 				}
 				
 				deltaHelper++;

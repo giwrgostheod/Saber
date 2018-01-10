@@ -95,7 +95,7 @@ public class YahooBenchmark extends InputStream {
 		// WindowHashTable relation = CampaignGenerator.generate();
 		
 		CampaignGenerator campaignGen = null;
-		if (campaigns.equals(null) || campaigns == null)
+		if (campaigns == null)
 			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);
 		else
 			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate, campaigns);
