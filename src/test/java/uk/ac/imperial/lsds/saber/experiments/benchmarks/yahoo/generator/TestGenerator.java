@@ -16,10 +16,10 @@ public class TestGenerator {
 		int numberOfThreads = 5;
 		int batchSize = 1048576;
 		String executionMode = "cpu";
-		int circularBufferSize = 64 * 1048576;
-		int unboundedBufferSize = 1 * 1048576 ;
-		int hashTableSize = 8 * 65536; // 1 * 1048576 / 256; //8 * 65536;
-		int partialWindows = 4; // 64; // 1048576;
+		int circularBufferSize = 64 * 1048576 / 2;
+		int unboundedBufferSize = 1 * 1048576 / 2;
+		int hashTableSize = 4 * 65536; // 1 * 1048576 / 256; //8 * 65536;
+		int partialWindows = 2; // 64; // 1048576;
 		
 		
 		// Set SABER's configuration				
@@ -46,13 +46,13 @@ public class TestGenerator {
 			
 		
 		/* Generate input stream */
-		int numberOfGeneratorThreads = 1;
+		int numberOfGeneratorThreads = 3;
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
 		TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 5 * 1048576;
+		int bufferSize = 4 * 1048576;
 		int coreToBind = numberOfThreads + 1;
 		
 		
@@ -63,10 +63,10 @@ public class TestGenerator {
 		double throughput, dt;
 		long sum = 0;*/
 		
-		GeneratedBuffer b = generator.getNext();
+		//GeneratedBuffer b = generator.getNext();
 		while (true) {
 			
-			//GeneratedBuffer b = generator.getNext();
+			GeneratedBuffer b = generator.getNext();
 			benchmarkQuery.getApplication().processData (b.getBuffer().array());
 
 /*			sum += b.getBuffer().capacity() / 128;
@@ -80,7 +80,7 @@ public class TestGenerator {
 				sum = 0;
 			}*/
 			
-			//b.unlock();
+			b.unlock();
 			
 		}
 	}
