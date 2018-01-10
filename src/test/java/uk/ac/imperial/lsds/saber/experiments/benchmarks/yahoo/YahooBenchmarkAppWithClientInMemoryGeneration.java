@@ -17,7 +17,7 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
-		String hostname = "localhost";//"192.168.10.98";
+		String hostname = "192.168.10.98";//"localhost";
 		int port = 6667;
 		int batchSize = 1048576;		
 		

@@ -24,7 +24,7 @@ public class InputStreamClientWithDataGeneration {
 		int coreToBind = 5;
 		TheCPU.getInstance().bind(coreToBind);
 
-		String hostname = "localhost";
+		String hostname = "192.168.10.98";//"localhost";
 		int port = 6667;
 				
 		try {

@@ -122,8 +122,8 @@ public class PerformanceMonitor implements Runnable {
 		
 		long time, _time = 0;
 		long timestampReference;
-		double latency, min, max, avg, sum, deltaLatency, deltaHelper;
-		int count;
+		double latency, latencyMin, latencyMax, latencyAvg, latencySum, latencyDelta, deltaHelper, thoughputAvg, throughputSum;
+		int latencyCounter, throughputCounter;
 
 		public Measurement (int id, ITaskDispatcher dispatcher, LatencyMonitor monitor) {
 			this.id = id;
@@ -135,12 +135,14 @@ public class PerformanceMonitor implements Runnable {
 			secondBuffer = this.dispatcher.getSecondBuffer();
 			
 			timestampReference = System.nanoTime();
-			min = Double.MAX_VALUE;
-			max = Double.MIN_VALUE;
-			sum = 0.;
-			count = 1;
-			deltaLatency = 0;
+			latencyMin = Double.MAX_VALUE;
+			latencyMax = Double.MIN_VALUE;
+			latencySum = 0.;
+			latencyCounter = 1;			
+			latencyDelta = 0;
 			deltaHelper = 0;
+			throughputCounter = 0;
+			throughputSum = 0;
 		}
 			
 		public void stop () {
@@ -162,6 +164,8 @@ public class PerformanceMonitor implements Runnable {
 			
 			bytesGenerated = dispatcher.getBytesGenerated();
 			
+			throughputCounter++;
+			
 			if (_bytesProcessed > 0) {
 				
 				Dt = (delta / 1000.0);
@@ -169,28 +173,37 @@ public class PerformanceMonitor implements Runnable {
 				MBpsProcessed = (bytesProcessed - _bytesProcessed) / _1MB_ / Dt;
 				MBpsGenerated = (bytesGenerated - _bytesGenerated) / _1MB_ / Dt;
 				
+				// TODO: Measure only the sources
+				if (this.id == 0) {
+					throughputSum += MBpsProcessed;
+					thoughputAvg = ((throughputSum / throughputCounter) * _1MB_) / 128; // tuple size to get the records per second
+					System.out.format("Throughput Average(records/sec) %10.3f", thoughputAvg);
+					System.out.println();
+				}
+				
 				deltaHelper++;
+				// TODO: Measure only the last operator
 				if (this.id == 1 && MBpsGenerated > 0) {
 
 					time = (System.nanoTime() - timestampReference) / 1000L;
 					latency = (time - _time) / 1000.;
 					
-					min = (latency < min) ? latency : min;
-					max = (latency > max) ? latency : max;
+					latencyMin = (latency < latencyMin) ? latency : latencyMin;
+					latencyMax = (latency > latencyMax) ? latency : latencyMax;
 					
-					sum += latency;
+					latencySum += latency;
 					if (_time > 0) {
-						count++;
-						avg = sum / count;						
+						latencyCounter++;
+						latencyAvg = latencySum / latencyCounter;						
 					}
 					
-					deltaLatency = latency - deltaHelper * SystemConf.PERFORMANCE_MONITOR_INTERVAL;
+					latencyDelta = latency - deltaHelper * SystemConf.PERFORMANCE_MONITOR_INTERVAL;
 					deltaHelper = 0;
 					
-					System.out.format("Latency(ms) %10.3f, Delta %10.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, deltaLatency, min, max, avg);
+					System.out.format("Latency(ms) %10.3f, Delta %7.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, latencyDelta, latencyMin, latencyMax, latencyAvg);
 					System.out.println();
 					_time = time;
-				}
+				}			
 				
 				s = String.format(" S%03d %10.3f MB/s output %10.3f MB/s [%s]", 
 					id, 
