@@ -24,9 +24,11 @@ import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.YahooBenchmarkOp;
+import uk.ac.imperial.lsds.saber.cql.predicates.ANDPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;
+import uk.ac.imperial.lsds.saber.cql.predicates.ORPredicate;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.CampaignGenerator;
 import uk.ac.imperial.lsds.saber.processors.HashMap;
 
@@ -68,6 +70,17 @@ public class YahooBenchmark extends InputStream {
 		
 				
 		//================================================================================
+		
+/*		IPredicate [] loadpreds  = new IPredicate [100];
+		for (int k = 0; k < loadpreds.length; k++)
+			loadpreds[k] = new IntComparisonPredicate(IntComparisonPredicate.LESS_OP, new IntColumnReference(5), new IntConstant(4));
+		IPredicate loadpred = new ANDPredicate (loadpreds);
+		// JOIN on ad_id with Relational Table
+		IPredicate selectPredicate = new ANDPredicate (
+				 new IntComparisonPredicate
+					(IntComparisonPredicate.EQUAL_OP, new IntColumnReference(5), new IntConstant(0)),
+				loadpred			
+				);*/
 		// FILTER (event_type == "view")
 		/* Create the predicates required for the filter operator */
 		IPredicate selectPredicate = new IntComparisonPredicate
@@ -80,14 +93,14 @@ public class YahooBenchmark extends InputStream {
 		// PROJECT (ad_id, event_time).
 		/* Define which fields are going to be projected */
 		Expression [] expressions = new Expression [2];
-		expressions[0] = new LongColumnReference(0);  	   // event_time
+		expressions[0] = new LongColumnReference(0); 	   // event_time
 		expressions[1] = new LongLongColumnReference (3);  // ad_id	
 		//================================================================================
 
 		
 		
 		//================================================================================
-		// JOIN on ad_id with Relational Table
+		
 		IPredicate joinPredicate = new LongLongComparisonPredicate
 				(LongLongComparisonPredicate.EQUAL_OP , new LongLongColumnReference(1), new LongLongColumnReference(0));
 				

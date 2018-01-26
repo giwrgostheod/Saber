@@ -1,16 +1,16 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
+package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.NewGenerator;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
-public class Generator {
+public class Generator1 {
 	
-	GeneratedBuffer [] buffers;
+	GeneratedBuffer1 [] buffers;
 	volatile int next;
 	
 	Executor executor;
-	GeneratorWorker [] workers;
+	GeneratorWorker1 [] workers;
 	
 	long timestamp = 0;
 	long timestampBase = 0;
@@ -22,15 +22,15 @@ public class Generator {
 	private final long[][] ads;	
 	private List<List<Integer>> positionsList;
 	
-	public Generator (int bufferSize, int numberOfThreads, int adsPerCampaign, long[][] ads, int coreToBind) {
+	public Generator1 (int bufferSize, int numberOfThreads, int adsPerCampaign, long[][] ads, int coreToBind) throws InterruptedException {
 		this.bufferSize = bufferSize;
 		this.numberOfThreads = numberOfThreads;
 		this.adsPerCampaign = adsPerCampaign;
 		this.ads = ads;
 		
-		buffers = new GeneratedBuffer [2];
+		buffers = new GeneratedBuffer1 [2];
 		for (int i = 0; i < buffers.length; i++)
-			buffers[i] = new GeneratedBuffer (bufferSize, false, numberOfThreads); /* TODO */ 
+			buffers[i] = new GeneratedBuffer1 (bufferSize, false, numberOfThreads); /* TODO */ 
 		next = 0;
 				
 		count = 0;
@@ -42,9 +42,9 @@ public class Generator {
 		createPositionsList(inputTupleSize);		
 		//executor = Executors.newCachedThreadPool();
 		
-		workers = new GeneratorWorker [numberOfThreads];
+		workers = new GeneratorWorker1 [numberOfThreads];
 		for (int i = 0; i < workers.length; i++) {
-			workers[i] = new GeneratorWorker (this, positionsList.get(i).get(0), positionsList.get(i).get(1), i + coreToBind);
+			workers[i] = new GeneratorWorker1 (this, positionsList.get(i).get(0), positionsList.get(i).get(1), i + coreToBind);
 			//workers[i].configure();
 			//executor.execute(workers[i]);
 			Thread thread = new Thread(workers[i]);
@@ -54,7 +54,7 @@ public class Generator {
 		fillNext ();
 	}
 	
-	public GeneratedBuffer getBuffer (int id) {
+	public GeneratedBuffer1 getBuffer (int id) {
 		return buffers[id];
 	}
 	
@@ -74,17 +74,17 @@ public class Generator {
 		return this.ads;
 	};
 	
-	public GeneratedBuffer getNext () throws InterruptedException {
-		GeneratedBuffer buffer = buffers[next];
+	public GeneratedBuffer1 getNext () throws InterruptedException {
+		GeneratedBuffer1 buffer = buffers[next];
 		/* Is buffer `next` generated? */
 		while (! buffer.isFilled())
-			;//Thread.yield();
+			Thread.yield();
 		fillNext ();
 		/* Lock and return the current buffer */
 		return buffer.lock();
 	}
 	
-	public void fillNext () {
+	public void fillNext () throws InterruptedException {
 		
 		int id;
 		
@@ -100,7 +100,7 @@ public class Generator {
 		
 		// System.out.println("Fill buffer " + id);
 		
-		GeneratedBuffer buffer = buffers[id];
+		GeneratedBuffer1 buffer = buffers[id];
 		/*
 		 * The buffer can't be locked because a call to getNext() by a single consumer
 		 * entails unlocking the previously used buffer.

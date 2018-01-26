@@ -2,6 +2,7 @@ package uk.ac.imperial.lsds.saber.cql.operators.cpu;
 
 import java.nio.ByteBuffer;
 //import java.util.List;
+import java.util.Random;
 
 //import com.google.common.collect.Multimap;
 
@@ -261,16 +262,20 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 	@Override
 	public void processData(WindowBatch batch, IWindowAPI api) {
 		
-		/* Select */
-		if (selectPredicate != null)
-			select (batch, api);
+		boolean useCalc = true;
+		if (useCalc && selectPredicate != null && expressions != null)
+			calc (batch, api);
+		else {
+			/* Select */
+			if (selectPredicate != null)
+				select (batch, api);
 		
 		
-		/* Project */
-		if (expressions != null)
-			project (batch, api);
+			/* Project */
+			if (expressions != null)
+				project (batch, api);
 		
-		
+		}
 		/* Hash Join */
 		if (joinPredicate != null)
 			hashJoin (batch, api);
@@ -320,6 +325,41 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 		api.outputWindowBatchResult(batch);*/
 	}
 	
+	private void calc(WindowBatch batch, IWindowAPI api) {
+		IQueryBuffer inputBuffer = batch.getBuffer();
+		IQueryBuffer outputBuffer = UnboundedQueryBufferFactory.newInstance();
+		
+		ITupleSchema schema = batch.getSchema();
+		int tupleSize = schema.getTupleSize();
+		
+		for (int pointer = batch.getBufferStartPointer(); pointer < batch.getBufferEndPointer(); pointer += tupleSize) {
+			
+			if (selectPredicate.satisfied (inputBuffer, schema, pointer)) {
+				
+				/* Write tuple to result buffer */
+				for (int i = 0; i < expressions.length; ++i) {
+					
+					expressions[i].appendByteResult(inputBuffer, schema, pointer, outputBuffer);
+				}
+				outputBuffer.put(projectedSchema.getPad());			}
+		}
+		
+		/* Return any (unbounded) buffers to the pool */
+		inputBuffer.release();
+		
+		/* Reset position for output buffer */
+		outputBuffer.close();
+		
+		/* Reuse window batch by setting the new buffer and the new schema for the data in this buffer */
+		batch.setBuffer(outputBuffer);
+		batch.setSchema(projectedSchema);
+
+		/* Important to set start and end buffer pointers */
+		batch.setBufferPointers(0, outputBuffer.limit());
+		
+		api.outputWindowBatchResult (batch);		
+	}
+
 	private void select(WindowBatch batch, IWindowAPI api) {
 		
 		IQueryBuffer inputBuffer = batch.getBuffer();

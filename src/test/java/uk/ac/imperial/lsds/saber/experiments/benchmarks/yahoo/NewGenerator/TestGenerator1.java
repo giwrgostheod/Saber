@@ -1,14 +1,14 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
+package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.NewGenerator;
 
 import java.nio.ByteBuffer;
 
 import uk.ac.imperial.lsds.saber.QueryConf;
 import uk.ac.imperial.lsds.saber.SystemConf;
-import uk.ac.imperial.lsds.saber.devices.TheCPU;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmark;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmarkQuery;
+import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator.GeneratedBuffer;
 
-public class TestGenerator {
+public class TestGenerator1 {
 	public static final String usage = "usage: YahooBenchmarkApp with simpler in-memory generation";
 	
 	public static void main (String [] args) throws InterruptedException {
@@ -54,35 +54,33 @@ public class TestGenerator {
 		
 		// TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 2 * 1048576/4;
-		int coreToBind = 1;//;numberOfThreads + 1;
+		int bufferSize = 2 * 1048576;
+		int coreToBind = 1;//numberOfThreads + 1;
 		
 		
-		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
+		Generator1 generator = new Generator1 (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
 
 		
-/*		long time2, time1 = System.nanoTime();
+		long time2, time1 = System.nanoTime();
 		double throughput, dt;
 		long sum = 0;
 		
 		//GeneratedBuffer b = generator.getNext();
-		ByteBuffer helper = ByteBuffer.allocate(4*1048576);*/
+		ByteBuffer helper = ByteBuffer.allocate(4*1048576);
 		
 		long timeLimit = System.currentTimeMillis() + 10 * 10000;
-
 		while (true) {
 			
 			if (timeLimit <= System.currentTimeMillis()) {
 				System.out.println("Terminating execution...");
 				System.exit(0);
-			}						
-			
-			GeneratedBuffer b = generator.getNext();
+			}			
+			GeneratedBuffer1 b = generator.getNext();
 			
 			benchmarkQuery.getApplication().processData (b.getBuffer().array());
 			b.unlock();
 
-			for (int k = 0; k < 10; k++)
+			for (int k = 0; k < 100000000; k++)
 				benchmarkQuery.getApplication().processData (b.getBuffer().array());
 
 			/*System.arraycopy(b.getBuffer().array(), 0, helper.array(), 0, b.getBuffer().array().length);
@@ -96,7 +94,8 @@ public class TestGenerator {
 				System.out.println(String.format("[DBG] %20.3f tuples/s", throughput));
 				time1 = time2;
 				sum = 0;
-			}*/			
+			}*/	
+			
 		}
 	}
 }

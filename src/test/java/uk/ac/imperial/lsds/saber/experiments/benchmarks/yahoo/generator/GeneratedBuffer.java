@@ -26,7 +26,7 @@ public class GeneratedBuffer {
 	public boolean isFilled () {
 		/* Latch is zero */
 		while (bufferFilledLatch.getCount() != 0)
-			Thread.yield();
+			;//Thread.yield();
 		return true;
 	}
 

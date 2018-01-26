@@ -1,14 +1,13 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
+package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.NewGenerator;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
 import uk.ac.imperial.lsds.saber.devices.TheCPU;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.BufferNode;
 
-public class GeneratorWorker implements Runnable {
+public class GeneratorWorker1 implements Runnable {
 	
-	Generator generator;
+	Generator1 generator;
 	volatile boolean started = false;
 	
 	private int isFirstTime = 2;
@@ -19,7 +18,7 @@ public class GeneratorWorker implements Runnable {
 	private final int endPos;
 	private final int id;
 	
-	public GeneratorWorker (Generator generator, int startPos, int endPos, int id) {
+	public GeneratorWorker1 (Generator1 generator, int startPos, int endPos, int id) {
 		this.generator = generator;
 		this.adsPerCampaign = generator.getAdsPerCampaign();
 		this.ads = generator.getAds();
@@ -44,7 +43,7 @@ public class GeneratorWorker implements Runnable {
 		System.out.println(String.format("[DBG] bind Worker Generator thread %2d to core %2d", id, id));
 
 		int curr;
-		GeneratedBuffer buffer;
+		GeneratedBuffer1 buffer;
 		int prev = 0;
 		long timestamp;
 		
@@ -63,7 +62,12 @@ public class GeneratorWorker implements Runnable {
 			timestamp = generator.getTimestamp ();
 			generate(buffer, startPos, endPos, timestamp);
 			
-			buffer.decrementLatch ();
+			try {
+				buffer.decrementLatch ();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			prev = curr;
 			// System.out.println("done filling buffer " + curr);
 			// break;
@@ -71,7 +75,7 @@ public class GeneratorWorker implements Runnable {
 		// System.out.println("worker exits " );
 	}
 	
-	private void generate(GeneratedBuffer generatedBuffer, int startPos, int endPos, long timestamp) {
+	private void generate(GeneratedBuffer1 generatedBuffer, int startPos, int endPos, long timestamp) {
 		
 		
 		ByteBuffer buffer = generatedBuffer.getBuffer().duplicate();

@@ -19,6 +19,7 @@ public class PerformanceMonitor implements Runnable {
 	
 	private long time, _time = 0L;
 	private long dt;
+	private boolean firstLatencyMeasurement = true;
 		
 	private QueryApplication application;
 	private int size;
@@ -190,22 +191,27 @@ public class PerformanceMonitor implements Runnable {
 				if (this.id == 1 && MBpsGenerated > 0) {
 
 					time = (System.nanoTime() - timestampReference) / 1000L;
-					latency = (time - _time) / 1000.;
 					
-					latencyMin = (latency < latencyMin) ? latency : latencyMin;
-					latencyMax = (latency > latencyMax) ? latency : latencyMax;
-					
-					latencySum += latency;
-					if (_time > 0) {
-						latencyCounter++;
-						latencyAvg = latencySum / latencyCounter;						
+					if (firstLatencyMeasurement) 
+						firstLatencyMeasurement = false;
+					else {
+						latency = (time - _time) / 1000.;
+						
+						latencyMin = (latency < latencyMin) ? latency : latencyMin;
+						latencyMax = (latency > latencyMax) ? latency : latencyMax;
+						
+						latencySum += latency;
+						if (_time > 0) {
+							latencyCounter++;
+							latencyAvg = latencySum / latencyCounter;						
+						}
+						
+						latencyDelta = latency - deltaHelper * SystemConf.PERFORMANCE_MONITOR_INTERVAL;
+						deltaHelper = 0;
+						
+						System.out.format("Latency(ms) %10.3f, Delta %7.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, latencyDelta, latencyMin, latencyMax, latencyAvg);
+						System.out.println();
 					}
-					
-					latencyDelta = latency - deltaHelper * SystemConf.PERFORMANCE_MONITOR_INTERVAL;
-					deltaHelper = 0;
-					
-					System.out.format("Latency(ms) %10.3f, Delta %7.3f, Min %10.3f, Max %10.3f, Avg %10.3f", latency, latencyDelta, latencyMin, latencyMax, latencyAvg);
-					System.out.println();
 					_time = time;
 				}			
 				
