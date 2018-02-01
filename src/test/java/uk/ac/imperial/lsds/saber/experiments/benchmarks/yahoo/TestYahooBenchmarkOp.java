@@ -91,7 +91,7 @@ public class TestYahooBenchmarkOp {
 		
         //================================================================================
 		/* Parse command line arguments */
-		int numberOfThreads = 8;
+		int numberOfThreads = 1;
 		int batchSize = 1048576;
 		String executionMode = "cpu";
 		int tuplesPerInsert = 1024; 	// recordsPerSecond =  5000000 or 80000000

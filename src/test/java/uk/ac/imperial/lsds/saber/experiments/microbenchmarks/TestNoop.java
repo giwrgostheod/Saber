@@ -35,7 +35,7 @@ public class TestNoop {
 		
 		/* Application-specific arguments */
 		
-		int batchSize = 1048576;
+		int batchSize = 1048576 / 4;
 		
 		WindowType windowType = WindowType.ROW_BASED;
 		
@@ -44,7 +44,13 @@ public class TestNoop {
 		
 		int numberOfAttributes = 6;
 		
-		int tuplesPerInsert = 32768;
+		int tuplesPerInsert = 32768 / 32;
+		
+		SystemConf.CIRCULAR_BUFFER_SIZE = 4 * 1048576;
+		
+		SystemConf.UNBOUNDED_BUFFER_SIZE = batchSize;
+		
+		SystemConf.THREADS = 1;
 		
 		/* Parse application-specific command-line arguments */
 		

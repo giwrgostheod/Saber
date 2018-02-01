@@ -15,14 +15,16 @@ public class TestGenerator {
 
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
-		int numberOfThreads = 6;
-		int batchSize = 1048576;
+		int numberOfThreads = 1;
+		int batchSize = 1048576/8;
 		String executionMode = "cpu";
-		int circularBufferSize = 64 * 1048576 / 2;
-		int unboundedBufferSize = 1 * 1048576 / 2;
-		int hashTableSize = 4 * 65536 / 1; // 1 * 1048576 / 256; //8 * 65536;
+		int circularBufferSize = 1 * 4 * 1048576;
+		int unboundedBufferSize = 1 * 1048576 / 8;
+		int hashTableSize = 4 * 65536 / 2; // 1 * 1048576 / 256; //8 * 65536;
 		int partialWindows = 2; // 64; // 1048576;
 		
+		if (args.length!=0)  
+			numberOfThreads = Integer.parseInt(args[0]);
 		
 		// Set SABER's configuration				
 		QueryConf queryConf = new QueryConf (batchSize);		
@@ -54,22 +56,21 @@ public class TestGenerator {
 		
 		// TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 2 * 1048576/4;
+		int bufferSize = 4*32768;//1048576/32;
 		int coreToBind = 1;//;numberOfThreads + 1;
 		
 		
-		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
+		//Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
 
 		
 /*		long time2, time1 = System.nanoTime();
 		double throughput, dt;
-		long sum = 0;
+		long sum = 0;*/
 		
 		//GeneratedBuffer b = generator.getNext();
-		ByteBuffer helper = ByteBuffer.allocate(4*1048576);*/
+		ByteBuffer helper = ByteBuffer.allocate(8*131072);
 		
-		long timeLimit = System.currentTimeMillis() + 10 * 10000;
-
+		long timeLimit = System.currentTimeMillis() + 100 * 10000;
 		while (true) {
 			
 			if (timeLimit <= System.currentTimeMillis()) {
@@ -77,17 +78,17 @@ public class TestGenerator {
 				System.exit(0);
 			}						
 			
-			GeneratedBuffer b = generator.getNext();
-			
-			benchmarkQuery.getApplication().processData (b.getBuffer().array());
-			b.unlock();
 
-			for (int k = 0; k < 10; k++)
-				benchmarkQuery.getApplication().processData (b.getBuffer().array());
+			//GeneratedBuffer b = generator.getNext();
 
-			/*System.arraycopy(b.getBuffer().array(), 0, helper.array(), 0, b.getBuffer().array().length);
+			//for (int k = 0; k < 9999; k++)
+			benchmarkQuery.getApplication().processData (helper.array());
+				
+			//b.unlock();
+				
+			//System.arraycopy(b.getBuffer().array(), 0, helper.array(), 0, b.getBuffer().array().length);
 
-			sum += b.getBuffer().capacity() / 128;
+/*			sum += b.getBuffer().capacity() / 128;
 			//System.out.println(String.format("[DBG] %20d tuples/s", sum));
 			if (sum >= 10000000) {
 				time2 = System.nanoTime();

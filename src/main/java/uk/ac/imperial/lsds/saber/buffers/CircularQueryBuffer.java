@@ -1,9 +1,14 @@
 package uk.ac.imperial.lsds.saber.buffers;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import uk.ac.imperial.lsds.saber.SystemConf;
+import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator.GeneratorWorker;
+import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator.Latch;
 
 public class CircularQueryBuffer implements IQueryBuffer {
 	
@@ -15,7 +20,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 	
 	private byte [] data = null;
 	
-	private int size;
+	public int size;
 	
 	private final PaddedAtomicLong start;
 	private final PaddedAtomicLong end;
@@ -29,6 +34,21 @@ public class CircularQueryBuffer implements IQueryBuffer {
 	
 	private PaddedLong h;
 	
+	// parallelize writing/copying
+	public boolean isParallel;
+	private CircularBufferWorker [] workers;
+	public AtomicInteger isReady;
+	public Latch isBufferFilledLatch;
+	public long timestamp = 0;
+	public long timestampBase = 0;
+	public int globalIndex;
+	public int globalLength;
+	public int numberOfThreads;
+	private boolean isFirst = true;
+	public int counter = -1;
+	public byte[] inputBuffer;
+	//
+
 	private static int nextPowerOfTwo (int size) {
 		
 		return 1 << (32 - Integer.numberOfLeadingZeros(size - 1));
@@ -69,6 +89,24 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		bytesProcessed = new AtomicLong (0L);
 		
 		h = new PaddedLong (0L);
+		
+		// parallelize the copying/writing
+		isParallel = true;
+		numberOfThreads = 4;
+		int coreToBind = 1;
+		isReady = new AtomicInteger(-1);
+		workers = new CircularBufferWorker [numberOfThreads];
+		if (isParallel) {
+			for (int i = 0; i < workers.length; i++) {
+				workers[i] = new CircularBufferWorker (this, i + coreToBind);
+				Thread thread = new Thread(workers[i]);
+				thread.start();
+			}
+		}
+		isBufferFilledLatch = new Latch(numberOfThreads);
+		timestampBase = System.currentTimeMillis();
+		timestamp = System.currentTimeMillis() - timestampBase;//0;
+		// 
 		
 		if (! this.isDirect) {
 			
@@ -220,21 +258,51 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			}
 		}
 		int index = normalise (_end);
-		if (length > (size - index)) { /* Copy in two parts */
+		
+		if (isParallel) {
+			//set the pointers
+			globalIndex = index;
+			globalLength = length/numberOfThreads;
+			timestamp = System.currentTimeMillis() - timestampBase;
+	
+			/*if (this.counter == Integer.MAX_VALUE)
+				this.counter = -1;
+			else
+				this.counter++; 	
+			*/
+			inputBuffer = values;
 			
-			if (offset != 0)
-				throw new NullPointerException ("error: copy in two part if the offset is greater than 0");
+			if (this.isReady.get() == Integer.MAX_VALUE)
+				this.isReady.set(-1);
+			else
+				this.isReady.incrementAndGet();
 			
-			int right = size - index;
-			int left  = length - (size - index);
+			while (this.isBufferFilledLatch.getCount()!=0)
+				;//Thread.yield();
 			
-			System.arraycopy(values, 0, data, index, right);
-			System.arraycopy(values, size - index, data, 0, left);
-			
+			this.isBufferFilledLatch.setLatch(numberOfThreads);
 		} else {
 			
-			System.arraycopy(values, offset, data, index, length);
+			if (length > (size - index)) { 
+			
+				if (offset != 0)
+					throw new NullPointerException ("error: copy in two part if the offset is greater than 0");
+				
+				int right = size - index;
+				int left  = length - (size - index);
+				
+				System.arraycopy(values, 0, data, index, right);
+				System.arraycopy(values, size - index, data, 0, left);
+				
+				//throw new IllegalStateException();
+				
+			} else {
+				
+				System.arraycopy(values, offset, data, index, length);
+	
+			}
 		}
+		
 		
 		int p = normalise (_end + length);
 		if (p <= index)

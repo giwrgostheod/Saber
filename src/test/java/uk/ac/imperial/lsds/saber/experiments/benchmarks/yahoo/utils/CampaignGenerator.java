@@ -4,8 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.UUID;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+//import com.google.common.collect.ArrayListMultimap;
+//import com.google.common.collect.Multimap;
 
 import uk.ac.imperial.lsds.saber.ITupleSchema;
 import uk.ac.imperial.lsds.saber.SystemConf;
@@ -22,7 +22,7 @@ public class CampaignGenerator {
 	public int adsPerCampaign = 0;
 	public ITupleSchema campaignsSchema = null; 
 	public IQueryBuffer relationBuffer = null;
-	public Multimap<Long,Integer> multimap;
+	//public Multimap<Long,Integer> multimap;
 	public HashMap hashMap = null;
 	long [][] adsArray = null;
 
@@ -146,10 +146,10 @@ public class CampaignGenerator {
 		UUID ad_id, campaign_id;
 		while (b1.hasRemaining()) {
 			
-			campaign_id = UUID.randomUUID();
+			campaign_id = new UUID(0L, value%100);//UUID.randomUUID();
 			for (i = 0; i < adsPerCampaign; i++){   						// every campaign has 10 ads
 				
-				ad_id = UUID.randomUUID();
+				ad_id = new UUID(0L, value);;//UUID.randomUUID();
 				b1.putLong(ad_id.getMostSignificantBits());
 				b1.putLong(ad_id.getLeastSignificantBits());				// ad_id	
 				
@@ -195,7 +195,7 @@ public class CampaignGenerator {
 		this.relationBuffer.put(data, data.length);	
 	}
 	
-	public void createRelationalHashTable(IQueryBuffer relationBuffer, int offset) {
+	/*public void createRelationalHashTable(IQueryBuffer relationBuffer, int offset) {
 		
 		this.multimap = ArrayListMultimap.create();		
 		IQueryBuffer buffer = relationBuffer;		
@@ -208,7 +208,7 @@ public class CampaignGenerator {
 			multimap.put(buffer.getLong(i + offset + 8), i);
 			i += tupleSize;
 		}		
-	}
+	}*/
 	
 	public void createHashMap(IQueryBuffer relationBuffer, int offset) {
 		
@@ -246,9 +246,9 @@ public class CampaignGenerator {
 		return this.relationBuffer;
 	}
 	
-	public Multimap<Long,Integer> getHashTable () {
+	/*public Multimap<Long,Integer> getHashTable () {
 		return this.multimap;
-	}
+	}*/
 	
 	public HashMap getHashMap () {
 		return this.hashMap;

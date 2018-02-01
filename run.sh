@@ -21,8 +21,8 @@ GUAVA="${MVN}/com/google/guava/guava/20.0/guava-20.0.jar"
 
 TESTS="target/test-classes"
 
-if [ ! -f "lib/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar" ]; then
-        echo "error: lib/saber-0.0.1-SNAPSHOT.jar not found. Try 'build.sh' first"
+if [ ! -f "target/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar" ]; then
+        echo "error: target/saber-0.0.1-SNAPSHOT.jar not found. Try 'build.sh' first"
         exit 1
 fi
 
@@ -38,7 +38,7 @@ fi
 
 # Set classpath
 JCP="."
-JCP="${JCP}:lib/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar"
+JCP="${JCP}:target/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar"
 # JCP="${JCP}:${LOG4J}"
 JCP="${JCP}:${JETTYSERVER}:${JETTYUTIL}:${JETTYHTTP}:${JETTYIO}"
 JCP="${JCP}:${JACKSONCORE}:${JACKSONBIND}:${JACKSONANNOTATIONS}"
@@ -47,7 +47,7 @@ JCP="${JCP}:${GUAVA}"
 JCP="${JCP}:${TESTS}"
 
 # OPTS="-Xloggc:test-gc.out"
-OPTS="-server -XX:+UseConcMarkSweepGC -XX:NewRatio=2 -XX:SurvivorRatio=16 -Xms8g -Xmx8g"
+OPTS="-server -XX:+UseConcMarkSweepGC -XX:NewRatio=2 -XX:SurvivorRatio=16 -Xms49g -Xmx49g"
 
 if [ $# -lt 1 ]; then
         echo "error: unspecified application class"
@@ -63,7 +63,22 @@ if [ ! -f ${CLASSFILE} ]; then
         exit 1
 fi
 
-java $OPTS -cp $JCP $CLASS $@
+for i in 6 7 8 
+do
+    for j in 0 1 2 3 
+    do 
+        java $OPTS -cp $JCP $CLASS $@ "$i" > results/result_cores_"$i"_trial_"$j"_new.txt
+    done
+done
+
+for i in 2
+do
+    for j in 0 1 2 3 
+    do 
+        java $OPTS -cp $JCP $CLASS $@ "$i" > results/result_cores_"$i"_trial_"$j".txt
+    done
+done
+
 
 echo "Done."
 echo "Bye."

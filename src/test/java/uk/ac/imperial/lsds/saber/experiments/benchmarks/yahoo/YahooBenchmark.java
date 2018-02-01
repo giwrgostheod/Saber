@@ -23,12 +23,12 @@ import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
+import uk.ac.imperial.lsds.saber.cql.operators.cpu.NoOp;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.YahooBenchmarkOp;
-import uk.ac.imperial.lsds.saber.cql.predicates.ANDPredicate;
+import uk.ac.imperial.lsds.saber.cql.operators.gpu.NoOpKernel;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;
-import uk.ac.imperial.lsds.saber.cql.predicates.ORPredicate;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.CampaignGenerator;
 import uk.ac.imperial.lsds.saber.processors.HashMap;
 
@@ -158,6 +158,7 @@ public class YahooBenchmark extends InputStream {
 				//groupByAttributes
 				);
 		
+		cpuCode = new NoOp ();
 		IOperatorCode gpuCode = null;
 		
 		QueryOperator operator;
@@ -173,14 +174,14 @@ public class YahooBenchmark extends InputStream {
 		
 		
 		// Create the aggregate operator
-		ITupleSchema joinSchema = ((YahooBenchmarkOp) cpuCode).getOutputSchema();
+		/*ITupleSchema joinSchema = ((YahooBenchmarkOp) cpuCode).getOutputSchema();
 		cpuCode = new Aggregation (windowDefinition, aggregationTypes, aggregationAttributes, groupByAttributes);
 		operator = new QueryOperator (cpuCode, gpuCode);
 		operators = new HashSet<QueryOperator>();
 		operators.add(operator);
 		Query query2 = new Query (1, operators, joinSchema, windowDefinition, null, null, queryConf, timestampReference);
 		queries.add(query2);
-		query1.connectTo(query2);
+		query1.connectTo(query2);*/
 		// ...
 
 		if (isExecuted) {
@@ -188,10 +189,10 @@ public class YahooBenchmark extends InputStream {
 			application.setup();
 		
 			/* The path is query -> dispatcher -> handler -> aggregator */
-			if (SystemConf.CPU)
+/*			if (SystemConf.CPU)
 				query2.setAggregateOperator((IAggregateOperator) cpuCode);
 			else
-				query2.setAggregateOperator((IAggregateOperator) gpuCode);
+				query2.setAggregateOperator((IAggregateOperator) gpuCode);*/
 		}
 		//================================================================================
 		
