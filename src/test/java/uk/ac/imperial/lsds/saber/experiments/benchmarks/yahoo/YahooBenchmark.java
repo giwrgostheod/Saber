@@ -24,10 +24,12 @@ import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.NoOp;
+import uk.ac.imperial.lsds.saber.cql.operators.cpu.Selection;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.YahooBenchmarkOp;
 import uk.ac.imperial.lsds.saber.cql.operators.gpu.NoOpKernel;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
+import uk.ac.imperial.lsds.saber.cql.predicates.LongComparisonPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.CampaignGenerator;
 import uk.ac.imperial.lsds.saber.processors.HashMap;
@@ -39,15 +41,21 @@ public class YahooBenchmark extends InputStream {
 	
 	private long[][] ads;
 	private int adsPerCampaign;
+	private boolean isV2 = false;
 
 	
 	public YahooBenchmark (QueryConf queryConf, boolean isExecuted) {
-		this(queryConf, isExecuted, null);
+		this(queryConf, isExecuted, null, false);
 	}
 	
-	public YahooBenchmark (QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns) {
+	public YahooBenchmark (QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns, boolean isV2) {
 		adsPerCampaign = 10;
-		createSchema ();
+		this.isV2 = isV2;
+		if (this.isV2)
+			createSchemaV2();
+		else
+			createSchema ();
+		
 		createApplication (queryConf, isExecuted, campaigns);
 	}
 	
@@ -61,7 +69,7 @@ public class YahooBenchmark extends InputStream {
         //================================================================================
 		long timestampReference = System.nanoTime(); //Fix this
 		boolean realtime = true;
-		int windowSize = realtime? 10000 : 10000000;
+		int windowSize = 10000;//realtime? 10000 : 10000000;
 		//================================================================================
 
 		
@@ -71,16 +79,7 @@ public class YahooBenchmark extends InputStream {
 				
 		//================================================================================
 		
-/*		IPredicate [] loadpreds  = new IPredicate [100];
-		for (int k = 0; k < loadpreds.length; k++)
-			loadpreds[k] = new IntComparisonPredicate(IntComparisonPredicate.LESS_OP, new IntColumnReference(5), new IntConstant(4));
-		IPredicate loadpred = new ANDPredicate (loadpreds);
-		// JOIN on ad_id with Relational Table
-		IPredicate selectPredicate = new ANDPredicate (
-				 new IntComparisonPredicate
-					(IntComparisonPredicate.EQUAL_OP, new IntColumnReference(5), new IntConstant(0)),
-				loadpred			
-				);*/
+		
 		// FILTER (event_type == "view")
 		/* Create the predicates required for the filter operator */
 		IPredicate selectPredicate = new IntComparisonPredicate
@@ -94,22 +93,31 @@ public class YahooBenchmark extends InputStream {
 		/* Define which fields are going to be projected */
 		Expression [] expressions = new Expression [2];
 		expressions[0] = new LongColumnReference(0); 	   // event_time
-		expressions[1] = new LongLongColumnReference (3);  // ad_id	
+		
+		if (isV2)
+			expressions[1] = new LongColumnReference (3);
+		else 
+			expressions[1] = new LongLongColumnReference (3);  // ad_id	
 		//================================================================================
 
 		
 		
-		//================================================================================
+		//================================================================================			
 		
-		IPredicate joinPredicate = new LongLongComparisonPredicate
-				(LongLongComparisonPredicate.EQUAL_OP , new LongLongColumnReference(1), new LongLongColumnReference(0));
-				
+		IPredicate joinPredicate = null;
+		if (isV2)
+			joinPredicate = new LongComparisonPredicate
+				(LongComparisonPredicate.EQUAL_OP , new LongColumnReference(1), new LongColumnReference(0));
+		else
+			joinPredicate = new LongLongComparisonPredicate
+			(LongLongComparisonPredicate.EQUAL_OP , new LongLongColumnReference(1), new LongLongColumnReference(0));
+		
 		/* Generate Campaigns' ByteBuffer and HashTable */
 		// WindowHashTable relation = CampaignGenerator.generate();
 		
 		CampaignGenerator campaignGen = null;
 		if (campaigns == null)
-			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate);
+			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate, this.isV2);
 		else
 			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate, campaigns);
 
@@ -136,7 +144,11 @@ public class YahooBenchmark extends InputStream {
 		aggregationAttributes[0] = new FloatColumnReference(1);
 		aggregationAttributes[1] = new FloatColumnReference(0);
 		
-		Expression [] groupByAttributes = new Expression [] {new LongLongColumnReference(3)};
+		Expression [] groupByAttributes = null;
+		if (isV2)
+			groupByAttributes = new Expression [] {new LongColumnReference(3)};
+		else
+			groupByAttributes = new Expression [] {new LongLongColumnReference(3)};
 		//================================================================================
 		
 		
@@ -156,9 +168,10 @@ public class YahooBenchmark extends InputStream {
 				//aggregationTypes, 
 				//aggregationAttributes, 
 				//groupByAttributes
+				,isV2
 				);
 		
-		cpuCode = new NoOp ();
+		//cpuCode = new NoOp ();
 		IOperatorCode gpuCode = null;
 		
 		QueryOperator operator;
@@ -174,14 +187,21 @@ public class YahooBenchmark extends InputStream {
 		
 		
 		// Create the aggregate operator
-		/*ITupleSchema joinSchema = ((YahooBenchmarkOp) cpuCode).getOutputSchema();
+		ITupleSchema joinSchema = ((YahooBenchmarkOp) cpuCode).getOutputSchema();
 		cpuCode = new Aggregation (windowDefinition, aggregationTypes, aggregationAttributes, groupByAttributes);
+
+		
+		IPredicate selectPredicate2 = new IntComparisonPredicate
+				(IntComparisonPredicate.NONEQUAL_OP, new IntColumnReference(1), new IntConstant(0));
+		//cpuCode = new Selection (selectPredicate2);
 		operator = new QueryOperator (cpuCode, gpuCode);
 		operators = new HashSet<QueryOperator>();
 		operators.add(operator);
 		Query query2 = new Query (1, operators, joinSchema, windowDefinition, null, null, queryConf, timestampReference);
+		
+		
 		queries.add(query2);
-		query1.connectTo(query2);*/
+		query1.connectTo(query2);
 		// ...
 
 		if (isExecuted) {
@@ -189,10 +209,10 @@ public class YahooBenchmark extends InputStream {
 			application.setup();
 		
 			/* The path is query -> dispatcher -> handler -> aggregator */
-/*			if (SystemConf.CPU)
+			if (SystemConf.CPU)
 				query2.setAggregateOperator((IAggregateOperator) cpuCode);
 			else
-				query2.setAggregateOperator((IAggregateOperator) gpuCode);*/
+				query2.setAggregateOperator((IAggregateOperator) gpuCode);
 		}
 		//================================================================================
 		

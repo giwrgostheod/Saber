@@ -68,6 +68,8 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 	
 	private int keyLength, valueLength;
 	
+	private boolean isV2 = true;
+	
 	/* Thread local variables */
 	private ThreadLocal<float   []> tl_values;
 	private ThreadLocal<int     []> tl_counts;
@@ -76,7 +78,7 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 		
 	//private Multimap<Integer,Integer> multimap;
 	private HashMap hashMap;
-		
+	
 	public YahooBenchmarkOp (
 			ITupleSchema inputSchema,
 			IPredicate selectPredicate, 
@@ -90,6 +92,25 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 			AggregationType [] aggregationTypes, 
 			FloatColumnReference [] aggregationAttributes, 
 			Expression [] groupByAttributes
+			) { 
+		this(inputSchema, selectPredicate, expressions, joinPredicate, relationSchema,
+				relationBuffer, hashMap, windowDefinition, aggregationTypes, 
+				aggregationAttributes, groupByAttributes, false);
+	}
+	public YahooBenchmarkOp (
+			ITupleSchema inputSchema,
+			IPredicate selectPredicate, 
+			Expression [] expressions, 
+			IPredicate joinPredicate,
+			ITupleSchema relationSchema,
+			IQueryBuffer relationBuffer,
+			// Multimap<Integer,Integer> multimap,
+			HashMap hashMap,
+			WindowDefinition windowDefinition,
+			AggregationType [] aggregationTypes, 
+			FloatColumnReference [] aggregationAttributes, 
+			Expression [] groupByAttributes,
+			boolean isV2
 			) {
 		
 		this.windowDefinition = windowDefinition;
@@ -110,6 +131,8 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 	    //================================================================================
 
 		this.outputSchema = this.joinedSchema;
+		
+		this.isV2 = isV2;
 		
 	    //================================================================================
 		/* Initialize Aggregation variables*/
@@ -424,7 +447,8 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 		byte[] bInputBuffer = inputBuffer.getByteBuffer().array();	
 		IQueryBuffer outputBuffer = UnboundedQueryBufferFactory.newInstance();				
 				
-		int column1 = ((LongLongColumnReference)joinPredicate.getFirstExpression()).getColumn();
+		int column1 = isV2? ((LongColumnReference)joinPredicate.getFirstExpression()).getColumn() : 
+								((LongLongColumnReference)joinPredicate.getFirstExpression()).getColumn();
 		int offset1 = projectedSchema.getAttributeOffset(column1);
 		int currentIndex1 =  batch.getBufferStartPointer();
 		int currentIndex2 =  0;// relationBuffer.getBufferStartPointer();
@@ -445,7 +469,8 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 		/* Is one of the windows empty? */
 		if (currentIndex1 != endIndex1 && currentIndex2 != endIndex2) { 
 					
-			byte [] key = new byte[16];
+			byte [] key = isV2? new byte[8] : new byte[16];
+			ByteBuffer b = ByteBuffer.wrap(key);
 			int value;
 			int j = 0;
 
@@ -454,11 +479,15 @@ public class YahooBenchmarkOp implements IOperatorCode, IAggregateOperator {
 				if (monitorSelectivity)
 					invoked ++;
 						
-				while (j < key.length) {
+				/*while (j < key.length) {
 					key[j] = bInputBuffer[pointer + offset1 + j];
 					j += 1;
 				}
-				j = 0;
+				j = 0;*/
+				
+				System.arraycopy(inputBuffer.array(), pointer + offset1 + j, b.array(), 0,key.length);
+
+
 				
 				value = hashMap.get(key);
 				if (value != -1) {

@@ -79,7 +79,7 @@ public class YahooBenchmarkAppWithClientInMemoryGeneration {
 							if (!campaigns.hasRemaining()) {
 								campaigns.flip();
 				    			// Initialize the Operators of the Benchmark
-				    			benchmarkQuery = new YahooBenchmark (queryConf, true, campaigns);
+				    			benchmarkQuery = new YahooBenchmark (queryConf, true, campaigns, false);
 								System.out.println(String.format("[DBG] Read the campaigns along with their ads."));		
 				    			receivedCampaigns = true;
 							}		

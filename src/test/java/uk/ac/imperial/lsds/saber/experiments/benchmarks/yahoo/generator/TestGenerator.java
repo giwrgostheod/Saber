@@ -1,10 +1,7 @@
 package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
 
-import java.nio.ByteBuffer;
-
 import uk.ac.imperial.lsds.saber.QueryConf;
 import uk.ac.imperial.lsds.saber.SystemConf;
-import uk.ac.imperial.lsds.saber.devices.TheCPU;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmark;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.YahooBenchmarkQuery;
 
@@ -16,12 +13,15 @@ public class TestGenerator {
 		/* Parse command line arguments */
 		YahooBenchmarkQuery benchmarkQuery = null;
 		int numberOfThreads = 1;
-		int batchSize = 1048576/8;
+		int batchSize = 4 * 1048576; //8 * 1048576 / 2;
 		String executionMode = "cpu";
-		int circularBufferSize = 1 * 4 * 1048576;
-		int unboundedBufferSize = 1 * 1048576 / 8;
-		int hashTableSize = 4 * 65536 / 2; // 1 * 1048576 / 256; //8 * 65536;
-		int partialWindows = 2; // 64; // 1048576;
+		int circularBufferSize = 128 * 4 * 1048576; //32 * 4 * 1048576;
+		int unboundedBufferSize = 4 * 1048576; //8 * 1048576 / 2;
+		int hashTableSize = 2 * 65536;//4 * 65536; // 1 * 1048576 / 256; //8 * 65536;
+		int partialWindows = 4; //128; // 64; // 1048576;
+		int slots = 1 * 128 * 1024;//128 * 1024;
+		
+		boolean isV2 = true;
 		
 		if (args.length!=0)  
 			numberOfThreads = Integer.parseInt(args[0]);
@@ -31,7 +31,8 @@ public class TestGenerator {
 		SystemConf.CIRCULAR_BUFFER_SIZE = circularBufferSize;		
 		SystemConf.UNBOUNDED_BUFFER_SIZE = 	unboundedBufferSize;		
 		SystemConf.HASH_TABLE_SIZE = hashTableSize;		
-		SystemConf.PARTIAL_WINDOWS = partialWindows;		
+		SystemConf.PARTIAL_WINDOWS = partialWindows;
+		SystemConf.SLOTS = slots;
 		SystemConf.SWITCH_THRESHOLD = 10;	
 		SystemConf.THROUGHPUT_MONITOR_INTERVAL = 1000L;		
 		SystemConf.SCHEDULING_POLICY = SystemConf.SchedulingPolicy.HLS;
@@ -46,7 +47,7 @@ public class TestGenerator {
 		
 		
 		// Initialize the Operators of the Benchmark
-		benchmarkQuery = new YahooBenchmark (queryConf, true);
+		benchmarkQuery = new YahooBenchmark (queryConf, true, null, isV2);
 			
 		
 		/* Generate input stream */
@@ -56,11 +57,11 @@ public class TestGenerator {
 		
 		// TheCPU.getInstance().bind(0);
 		
-		int bufferSize = 4*32768;//1048576/32;
-		int coreToBind = 1;//;numberOfThreads + 1;
+		int bufferSize = 4 * 131072;//4*32768;//1048576/32;
+		int coreToBind = 4;//;numberOfThreads + 1;
 		
 		
-		//Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind);
+		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind, isV2);
 
 		
 /*		long time2, time1 = System.nanoTime();
@@ -68,9 +69,15 @@ public class TestGenerator {
 		long sum = 0;*/
 		
 		//GeneratedBuffer b = generator.getNext();
-		ByteBuffer helper = ByteBuffer.allocate(8*131072);
+/*		ByteBuffer helper = ByteBuffer.allocate(8*131072);
 		
-		long timeLimit = System.currentTimeMillis() + 100 * 10000;
+		while (helper.hasRemaining()) {
+			helper.putInt(1);
+		}*/
+
+		long timeLimit = System.currentTimeMillis() + 10 * 10000;
+		//GeneratedBuffer b = generator.getNext();
+
 		while (true) {
 			
 			if (timeLimit <= System.currentTimeMillis()) {
@@ -79,12 +86,12 @@ public class TestGenerator {
 			}						
 			
 
-			//GeneratedBuffer b = generator.getNext();
+			GeneratedBuffer b = generator.getNext();
 
 			//for (int k = 0; k < 9999; k++)
-			benchmarkQuery.getApplication().processData (helper.array());
+			benchmarkQuery.getApplication().processData (b.getBuffer().array());
 				
-			//b.unlock();
+			b.unlock();
 				
 			//System.arraycopy(b.getBuffer().array(), 0, helper.array(), 0, b.getBuffer().array().length);
 

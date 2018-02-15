@@ -1,14 +1,11 @@
 package uk.ac.imperial.lsds.saber.buffers;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import uk.ac.imperial.lsds.saber.SystemConf;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator.GeneratorWorker;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator.Latch;
 
 public class CircularQueryBuffer implements IQueryBuffer {
 	
@@ -47,6 +44,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 	private boolean isFirst = true;
 	public int counter = -1;
 	public byte[] inputBuffer;
+	public CountDownLatch latch; 
 	//
 
 	private static int nextPowerOfTwo (int size) {
@@ -90,23 +88,25 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		
 		h = new PaddedLong (0L);
 		
-		// parallelize the copying/writing
-		isParallel = true;
-		numberOfThreads = 4;
-		int coreToBind = 1;
-		isReady = new AtomicInteger(-1);
-		workers = new CircularBufferWorker [numberOfThreads];
-		if (isParallel) {
+		// parallelize the copying/writing		
+		isParallel = true;	
+
+		//this.id = 0;
+		if (this.id == 0) {
+			numberOfThreads = 2;
+			int coreToBind = 1;
+			isReady = new AtomicInteger(-1);
+			workers = new CircularBufferWorker [numberOfThreads];
 			for (int i = 0; i < workers.length; i++) {
 				workers[i] = new CircularBufferWorker (this, i + coreToBind);
 				Thread thread = new Thread(workers[i]);
 				thread.start();
-			}
-		}
-		isBufferFilledLatch = new Latch(numberOfThreads);
-		timestampBase = System.currentTimeMillis();
-		timestamp = System.currentTimeMillis() - timestampBase;//0;
-		// 
+			}			
+			isBufferFilledLatch = new Latch(numberOfThreads);
+			latch = new CountDownLatch(numberOfThreads);
+			timestampBase = System.currentTimeMillis();
+			timestamp = System.currentTimeMillis() - timestampBase;//0;
+		}		
 		
 		if (! this.isDirect) {
 			
@@ -254,12 +254,12 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			h.value = start.get();
 			if (h.value <= wrapPoint) {
 				/* debug (); */
-				return -1;
+				return -1;				
 			}
 		}
 		int index = normalise (_end);
 		
-		if (isParallel) {
+		if (id == 0) {
 			//set the pointers
 			globalIndex = index;
 			globalLength = length/numberOfThreads;
@@ -275,12 +275,17 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			if (this.isReady.get() == Integer.MAX_VALUE)
 				this.isReady.set(-1);
 			else
-				this.isReady.incrementAndGet();
+				this.isReady.incrementAndGet();//compareandswap
 			
 			while (this.isBufferFilledLatch.getCount()!=0)
-				;//Thread.yield();
+				Thread.yield();
+			
+			/*while (this.latch.getCount()!=0)
+				;*/
 			
 			this.isBufferFilledLatch.setLatch(numberOfThreads);
+			
+			//this.latch = new CountDownLatch(numberOfThreads);
 		} else {
 			
 			if (length > (size - index)) { 

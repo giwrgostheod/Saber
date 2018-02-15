@@ -510,6 +510,13 @@ public class PartialResultSlot {
 					int w3pos = mergedHashTable.getIndex(b1.array(), mergedHashTable.getKeyOffset(idx), 
 							operator.getKeyLength(), w3found);
 					
+					if (w3found[0]) {
+						//System.out.println("It already exists!");
+						w3found[0] = false;
+						w3pos = mergedHashTable.getIndex(b2.array(), mergedHashTable.getKeyOffset(idx), 
+								operator.getKeyLength(), w3found, true);
+					}
+					
 					if (w3pos < 0 || w3found[0])
 						throw new IllegalStateException ("error: failed to insert new key in intermediate hash table");
 					
@@ -691,7 +698,14 @@ public class PartialResultSlot {
 				while (tmp < cont.position()) {
 					System.out.println((j++)*64+", " + cont.getLong(tmp) +", " + cont.getLong(tmp + 8) +", " + cont.getLong(tmp+16) +" " + cont.getLong(tmp+24) +", " + cont.getFloat(tmp+32) +", " + cont.getFloat(tmp+36) + ", " + cont.getInt(tmp+40) +"! ");
 					tmp+= 64;
-				}*/
+				}*/				
+				
+				if (w3found[0]) {
+					//System.out.println("It already exists!");
+					w3found[0] = false;
+					w3pos = mergedHashTable.getIndex(b2.array(), mergedHashTable.getKeyOffset(idx), 
+							operator.getKeyLength(), w3found, true);
+				}
 				
 				if (w3pos < 0 || w3found[0])
 					throw new IllegalStateException ("error: failed to insert new key in intermediate hash table at " + w3pos);

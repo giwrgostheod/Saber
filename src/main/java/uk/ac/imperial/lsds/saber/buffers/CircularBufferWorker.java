@@ -7,8 +7,6 @@ import uk.ac.imperial.lsds.saber.cql.expressions.longlongs.LongLongColumnReferen
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;
 import uk.ac.imperial.lsds.saber.devices.TheCPU;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.BufferNode;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.CampaignGenerator;
 
 public class CircularBufferWorker implements Runnable {
 	
@@ -62,7 +60,7 @@ public class CircularBufferWorker implements Runnable {
 				Thread.yield();*/
 			
 			while ( (curr = this.circularBuffer.isReady.get()) == prev)
-				;//Thread.yield();
+				Thread.yield();						
 			
 			/* Fill buffer... */
 			timestamp = this.circularBuffer.timestamp;
@@ -100,6 +98,8 @@ public class CircularBufferWorker implements Runnable {
 			prev = curr;
 					
 			this.circularBuffer.isBufferFilledLatch.decReaders();
+			
+			//this.circularBuffer.latch.countDown();
 		}
 	}	
 	

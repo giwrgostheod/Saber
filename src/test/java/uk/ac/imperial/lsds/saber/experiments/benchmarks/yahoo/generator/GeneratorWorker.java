@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.UUID;
 
 import uk.ac.imperial.lsds.saber.devices.TheCPU;
-import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.BufferNode;
+
 
 public class GeneratorWorker implements Runnable {
 	
@@ -19,13 +19,20 @@ public class GeneratorWorker implements Runnable {
 	private final int endPos;
 	private final int id;
 	
+	private boolean isV2 = false;
+	
 	public GeneratorWorker (Generator generator, int startPos, int endPos, int id) {
+		this(generator, startPos, endPos, id, false);
+	}
+	public GeneratorWorker (Generator generator, int startPos, int endPos, int id, boolean isV2) {
 		this.generator = generator;
 		this.adsPerCampaign = generator.getAdsPerCampaign();
 		this.ads = generator.getAds();
 		this.startPos = startPos;
 		this.endPos = endPos;
 		this.id = id;
+		
+		this.isV2 = isV2;
 		
 		bufferHelper = ByteBuffer.allocate(32);
 	}
@@ -61,7 +68,10 @@ public class GeneratorWorker implements Runnable {
 			
 			/* Fill buffer... */
 			timestamp = generator.getTimestamp ();
-			generate(buffer, startPos, endPos, timestamp);
+			if (isV2)
+				generateV2(buffer, startPos, endPos, timestamp);  
+			else
+				generate(buffer, startPos, endPos, timestamp);
 			
 			buffer.decrementLatch ();
 			prev = curr;
@@ -115,6 +125,38 @@ public class GeneratorWorker implements Runnable {
 				
 				// buffer padding
 				buffer.position(buffer.position() + 120);
+			}
+		}	
+	}
+
+	private void generateV2(GeneratedBuffer generatedBuffer, int startPos, int endPos, long timestamp) {	
+		ByteBuffer buffer = generatedBuffer.getBuffer().duplicate();
+		/* Fill the buffer */	
+		
+		if (isFirstTime!=0 ) {
+			long user_id = 0L; 
+			long page_id = 0L;
+			int value = 0;
+			
+			buffer.position(startPos);
+			while (buffer.position()  < endPos) {
+			    buffer.putLong (timestamp);		    
+				buffer.putLong(user_id);                            
+				buffer.putLong(page_id);				buffer.putLong(this.ads[(value % 100000) % (100 * this.adsPerCampaign)][1]);			
+				buffer.putInt((value % 100000) % 5);
+				buffer.putInt((value % 100000) % 3);                                 
+				buffer.putInt(1);                                                            
+				// buffer padding
+				buffer.position(buffer.position() + 20);
+				value ++;
+			}
+			isFirstTime --;
+		} else {
+			buffer.position(startPos);
+			while (buffer.position()  < endPos) {
+			    buffer.putLong (timestamp);
+				// buffer padding
+				buffer.position(buffer.position() + 56);
 			}
 		}	
 	}

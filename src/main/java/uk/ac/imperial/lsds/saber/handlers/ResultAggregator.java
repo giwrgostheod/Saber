@@ -119,7 +119,6 @@ public class ResultAggregator {
 					break;
 				
 				/* Both p and q nodes are ready to aggregate. */
-				// System.out.println("Aggr " + p + " with " + q);
 				p.aggregate(q, operator);
 				
 				if (! p.isReady())

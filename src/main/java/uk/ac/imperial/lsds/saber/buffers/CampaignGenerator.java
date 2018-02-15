@@ -1,4 +1,4 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils;
+package uk.ac.imperial.lsds.saber.buffers;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -14,7 +14,6 @@ import uk.ac.imperial.lsds.saber.TupleSchema.PrimitiveType;
 import uk.ac.imperial.lsds.saber.buffers.IQueryBuffer;
 import uk.ac.imperial.lsds.saber.buffers.RelationalTableQueryBuffer;
 import uk.ac.imperial.lsds.saber.cql.expressions.longlongs.LongLongColumnReference;
-import uk.ac.imperial.lsds.saber.cql.expressions.longs.LongColumnReference;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.processors.HashMap;
 
@@ -26,42 +25,25 @@ public class CampaignGenerator {
 	//public Multimap<Long,Integer> multimap;
 	public HashMap hashMap = null;
 	long [][] adsArray = null;
-	
-	private boolean isV2 = false;
 
 	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate) {
-		this(adsPerCampaign, joinPredicate, false);
-	}
-	
-	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate, boolean isV2) {
 		
 		this.adsPerCampaign = adsPerCampaign;
-		this.campaignsSchema = isV2? createCampaignsSchemaV2() : createCampaignsSchema();
+		this.campaignsSchema = createCampaignsSchema();
 		this.adsArray = new long [100 * adsPerCampaign][2];
 		
-		this.isV2 = isV2;
-		
 		/* Generate the campaigns and their ads*/
-		
-		if (isV2)
-			generateBufferV2();
-		else
-			generateBuffer(); 
-
+		generateBuffer(); 
+		//generateBufferIncrementally();
 		
 		/* Create Hash Table*/
-		int column = isV2?((LongColumnReference) joinPredicate.getSecondExpression()).getColumn() : 
-							((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
+		int column = ((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
 		int offset = campaignsSchema.getAttributeOffset(column);
 		createHashMap(relationBuffer, offset);
 		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
 	}
 	
 	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate, ByteBuffer campaigns) {
-		this(adsPerCampaign, joinPredicate, campaigns, false);
-	}
-	
-	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate, ByteBuffer campaigns, boolean isV2) {
 		
 		this.adsPerCampaign = adsPerCampaign;
 		this.campaignsSchema = createCampaignsSchema();
@@ -72,7 +54,7 @@ public class CampaignGenerator {
 		//generateBufferIncrementally();
 		
 		/* Create Hash Table*/
-		int column = ((LongColumnReference) joinPredicate.getSecondExpression()).getColumn(); // ((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
+		int column = ((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
 		int offset = campaignsSchema.getAttributeOffset(column);
 		createHashMap(relationBuffer, offset);
 		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
@@ -102,18 +84,6 @@ public class CampaignGenerator {
 		return schema;
 	}
 	
-	public static ITupleSchema createCampaignsSchemaV2 () {	
-		int [] offsets = new int [2];	
-		offsets[0] =  0; 
-		offsets[1] = 8; 				
-		ITupleSchema schema = new TupleSchema (offsets, 16);
-		schema.setAttributeType (0, PrimitiveType.LONG );
-		schema.setAttributeType (1, PrimitiveType.LONG  );		
-		schema.setAttributeName (0, "ad_id");
-		schema.setAttributeName (1, "campaign_id");		
-		return schema;
-	}
-	
 	public void generateBuffer () {
 		
 		/* Reset tuple size */
@@ -128,11 +98,10 @@ public class CampaignGenerator {
 		/* Fill the buffer */
 		int i;
 		int value = 0;
-		int value2 = 0;
 		UUID ad_id, campaign_id;
 		while (b1.hasRemaining()) {
 			
-			campaign_id = new UUID(0L, value2%100);
+			campaign_id = new UUID(0L, value%100);
 			campaign_id = UUID.randomUUID();
 
 			for (i = 0; i < adsPerCampaign; i++){   						// every campaign has 10 ads
@@ -150,45 +119,6 @@ public class CampaignGenerator {
 				b1.putLong(campaign_id.getMostSignificantBits());				
 				b1.putLong(campaign_id.getLeastSignificantBits());			// campaign_id
 				
-				// padding
-				b1.put(this.campaignsSchema.getPad());
-				
-				value++;
-			}
-			value2++;
-		}
-		
-		this.relationBuffer = new RelationalTableQueryBuffer(0, SystemConf.RELATIONAL_TABLE_BUFFER_SIZE, false);
-		
-		this.relationBuffer.put(data, data.length);		
-	}
-	
-	public void generateBufferV2 () {
-		
-		/* Reset tuple size */
-		int campaignsTupleSize = campaignsSchema.getTupleSize();
-		
-		/* set the size of the relational table*/
-		SystemConf.RELATIONAL_TABLE_BUFFER_SIZE = campaignsTupleSize * 100 * adsPerCampaign;
-		
-		byte [] data = new byte [campaignsTupleSize * 100 * adsPerCampaign];		
-		ByteBuffer b1 = ByteBuffer.wrap(data);
-		
-		/* Fill the buffer */
-		int i;
-		int value = 0;
-		int value2 = 0;
-		long ad_id, campaign_id;
-		while (b1.hasRemaining()) {
-			
-			campaign_id = (value2);
-			value2 ++;
-			for (i = 0; i < adsPerCampaign; i++){
-				ad_id = value;
-				b1.putLong(ad_id);			
-				this.adsArray[value][0] = 0L;
-				this.adsArray[value][1] = ad_id;
-				b1.putLong(campaign_id);			
 				// padding
 				b1.put(this.campaignsSchema.getPad());
 				
@@ -245,7 +175,7 @@ public class CampaignGenerator {
 		byte[] buffer = relationBuffer.getByteBuffer().array();		
 		int tupleSize = campaignsSchema.getTupleSize();
 		
-		byte[] b = isV2? new byte[8] : new byte[16];
+		byte[] b = new byte[16];
 		
 		int endIndex = SystemConf.RELATIONAL_TABLE_BUFFER_SIZE; //batch1.getBufferEndPointer();		
 		int i = 0;
