@@ -28,7 +28,7 @@ import uk.ac.imperial.lsds.saber.cql.operators.AggregationType;
 import uk.ac.imperial.lsds.saber.cql.operators.IAggregateOperator;
 import uk.ac.imperial.lsds.saber.cql.operators.IOperatorCode;
 import uk.ac.imperial.lsds.saber.cql.operators.cpu.Aggregation;
-import uk.ac.imperial.lsds.saber.cql.operators.cpu.YahooBenchmarkOp;
+import uk.ac.imperial.lsds.saber.cql.operators.udfs.YahooBenchmarkOp;
 import uk.ac.imperial.lsds.saber.cql.predicates.IPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.IntComparisonPredicate;
 import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;

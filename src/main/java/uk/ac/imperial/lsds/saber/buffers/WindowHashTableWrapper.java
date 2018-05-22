@@ -85,28 +85,45 @@ public class WindowHashTableWrapper {
 	}
 	
 	public int getIndex (byte [] array, int offset, int length, boolean [] found) {
-		return getIndex(array, offset, length, found, false);
-	}
-	
-	public int getIndex (byte [] array, int offset, int length, boolean [] found, boolean chaining) {
-		
+
 		int h = JenkinsHashFunctions.hash(array, offset, length, 1) & (slots - 1);
 		int idx = start + h * tupleLength;
 		
 		int attempts = 0;
 		while (attempts < slots) {
 			if (content.get(idx) == 1) {
-				if (compare (array, offset, length, idx) == 0 && !chaining) {
+				if (compare (array, offset, length, idx) == 0) {
 					found[0] = true;
 					return idx;
 				}
 			} else {
-				found[0] = false;
-				return idx;
+                found[0] = false;
+                return idx;
+            }
+			attempts ++;
+			idx = getNext (++h);
+		}
+		found[0] = false;
+		return -1;
+	}
+
+	public int findIndex (byte [] array, int offset, int length, boolean [] found) {
+
+		int h = JenkinsHashFunctions.hash(array, offset, length, 1) & (slots - 1);
+		int idx = start + h * tupleLength;
+
+		int attempts = 0;
+		while (attempts < slots) {
+			if (content.get(idx) == 1) {
+				if (compare (array, offset, length, idx) == 0) {
+					found[0] = true;
+					return idx;
+				}
 			}
 			attempts ++;
 			idx = getNext (++h);
 		}
+		found[0] = false;
 		return -1;
 	}
 	

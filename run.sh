@@ -1,4 +1,3 @@
-#!/bin/bash
 
 USAGE="usage: ./run.sh [class name]"
 
@@ -21,7 +20,7 @@ GUAVA="${MVN}/com/google/guava/guava/20.0/guava-20.0.jar"
 
 TESTS="target/test-classes"
 
-if [ ! -f "target/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar" ]; then
+if [ ! -f "target/saber-0.0.1-SNAPSHOT.jar" ]; then
         echo "error: target/saber-0.0.1-SNAPSHOT.jar not found. Try 'build.sh' first"
         exit 1
 fi
@@ -38,7 +37,7 @@ fi
 
 # Set classpath
 JCP="."
-JCP="${JCP}:target/yahoo_benchmark_saber-0.0.1-SNAPSHOT.jar"
+JCP="${JCP}:target/saber-0.0.1-SNAPSHOT.jar"
 # JCP="${JCP}:${LOG4J}"
 JCP="${JCP}:${JETTYSERVER}:${JETTYUTIL}:${JETTYHTTP}:${JETTYIO}"
 JCP="${JCP}:${JACKSONCORE}:${JACKSONBIND}:${JACKSONANNOTATIONS}"
@@ -67,9 +66,10 @@ for i in 1 2 3 4 5 6 7 8
 do
     for j in 0 1 2 3 4
     do 
-        java $OPTS -cp $JCP $CLASS $@ "$i" > results/result_cores_"$i"_trial_"$j"_without_aggr.txt
+        java $OPTS -cp $JCP $CLASS $@ "$i" > results/result_cores_"$i"_trial_"$j".txt
     done
 done
+
 
 
 echo "Done."

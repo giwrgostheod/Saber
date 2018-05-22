@@ -15,13 +15,13 @@ public class TestGenerator {
 		int numberOfThreads = 1;
 		int batchSize = 4 * 1048576; //8 * 1048576 / 2;
 		String executionMode = "cpu";
-		int circularBufferSize = 128 * 4 * 1048576; //32 * 4 * 1048576;
+		int circularBufferSize = 128 * 1 * 1048576/2; //32 * 4 * 1048576;
 		int unboundedBufferSize = 4 * 1048576; //8 * 1048576 / 2;
-		int hashTableSize = 2 * 65536;//4 * 65536; // 1 * 1048576 / 256; //8 * 65536;
-		int partialWindows = 4; //128; // 64; // 1048576;
+		int hashTableSize = 2*64*128;//1 * 65536;//4 * 65536; // 1 * 1048576 / 256; //8 * 65536;
+		int partialWindows = 2; //128; // 64; // 1048576;
 		int slots = 1 * 128 * 1024;//128 * 1024;
 		
-		boolean isV2 = true;
+		boolean isV2 = false;
 		
 		if (args.length!=0)  
 			numberOfThreads = Integer.parseInt(args[0]);
@@ -51,14 +51,14 @@ public class TestGenerator {
 			
 		
 		/* Generate input stream */
-		int numberOfGeneratorThreads = 1;
+		int numberOfGeneratorThreads = 2;
 		int adsPerCampaign = ((YahooBenchmark) benchmarkQuery).getAdsPerCampaign();
 		long[][] ads = ((YahooBenchmark) benchmarkQuery).getAds();
 		
 		// TheCPU.getInstance().bind(0);
 		
 		int bufferSize = 4 * 131072;//4*32768;//1048576/32;
-		int coreToBind = 4;//;numberOfThreads + 1;
+		int coreToBind = 3;//;numberOfThreads + 1;
 		
 		
 		Generator generator = new Generator (bufferSize, numberOfGeneratorThreads, adsPerCampaign, ads, coreToBind, isV2);

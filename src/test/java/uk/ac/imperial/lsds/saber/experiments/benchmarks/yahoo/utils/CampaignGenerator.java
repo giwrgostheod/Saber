@@ -133,12 +133,12 @@ public class CampaignGenerator {
 		while (b1.hasRemaining()) {
 			
 			campaign_id = new UUID(0L, value2%100);
-			campaign_id = UUID.randomUUID();
+			//campaign_id = UUID.randomUUID();
 
 			for (i = 0; i < adsPerCampaign; i++){   						// every campaign has 10 ads
 				
 				ad_id = new UUID(0L, value);
-				ad_id = UUID.randomUUID();
+				//ad_id = UUID.randomUUID();
 
 				b1.putLong(ad_id.getMostSignificantBits());
 				b1.putLong(ad_id.getLeastSignificantBits());				// ad_id	
