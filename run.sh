@@ -62,7 +62,7 @@ if [ ! -f ${CLASSFILE} ]; then
         exit 1
 fi
 
-for i in 1 2 3 4 5 6 7 8 
+for i in 1 2 3 4 5 6
 do
     for j in 0 1 2 3 4
     do 

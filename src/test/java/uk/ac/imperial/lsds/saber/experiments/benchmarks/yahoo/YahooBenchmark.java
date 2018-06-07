@@ -31,8 +31,6 @@ import uk.ac.imperial.lsds.saber.cql.predicates.LongLongComparisonPredicate;
 import uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils.CampaignGenerator;
 import uk.ac.imperial.lsds.saber.processors.HashMap;
 
-// This example is the implementation of the query: SELECT * from NetworkTraffic WHERE latency > threshold
-// without SQL.
 
 public class YahooBenchmark extends InputStream {
 	
@@ -61,32 +59,22 @@ public class YahooBenchmark extends InputStream {
 	}
 	
 	public void createApplication(QueryConf queryConf, boolean isExecuted, ByteBuffer campaigns) {
-
-		
-        //================================================================================
-		long timestampReference = System.nanoTime(); //Fix this
+		/* Set execution parameters */
+		long timestampReference = System.nanoTime();
 		boolean realtime = true;
 		int windowSize = 10000;//realtime? 10000 : 10000000;
-		//================================================================================
 
 		
 		/* Create Input Schema */
 		ITupleSchema inputSchema = schema;
 		
-				
-		//================================================================================
-		
-		
-		// FILTER (event_type == "view")
+
+		/* FILTER (event_type == "view") */
 		/* Create the predicates required for the filter operator */
 		IPredicate selectPredicate = new IntComparisonPredicate
 				(IntComparisonPredicate.EQUAL_OP, new IntColumnReference(5), new IntConstant(0));
-		//================================================================================
 		
-		
-		
-		//================================================================================
-		// PROJECT (ad_id, event_time).
+		/* PROJECT (ad_id, event_time) */
 		/* Define which fields are going to be projected */
 		Expression [] expressions = new Expression [2];
 		expressions[0] = new LongColumnReference(0); 	   // event_time
@@ -95,12 +83,10 @@ public class YahooBenchmark extends InputStream {
 			expressions[1] = new LongColumnReference (3);
 		else 
 			expressions[1] = new LongLongColumnReference (3);  // ad_id	
-		//================================================================================
 
-		
-		
-		//================================================================================			
-		
+
+		/* JOIN (ad_id, ad_id) */
+		/* Define which fields are going be used for the Join operator */
 		IPredicate joinPredicate = null;
 		if (isV2)
 			joinPredicate = new LongComparisonPredicate
@@ -108,10 +94,10 @@ public class YahooBenchmark extends InputStream {
 		else
 			joinPredicate = new LongLongComparisonPredicate
 			(LongLongComparisonPredicate.EQUAL_OP , new LongLongColumnReference(1), new LongLongColumnReference(0));
-		
+
+
 		/* Generate Campaigns' ByteBuffer and HashTable */
 		// WindowHashTable relation = CampaignGenerator.generate();
-		
 		CampaignGenerator campaignGen = null;
 		if (campaigns == null)
 			campaignGen = new CampaignGenerator(adsPerCampaign, joinPredicate, this.isV2);
@@ -122,11 +108,8 @@ public class YahooBenchmark extends InputStream {
 		IQueryBuffer relationBuffer = campaignGen.getRelationBuffer();
 		this.ads = campaignGen.getAds();
 		HashMap hashMap = campaignGen.getHashMap();
-		//================================================================================
-		
-		
-		
-		//================================================================================
+
+
 		// AGGREGATE (count("*") as count, max(event_time) as 'lastUpdate) 
 		// GROUP BY Campaign_ID with 10 seconds tumbling window
 		WindowDefinition windowDefinition = new WindowDefinition (WindowType.RANGE_BASED, windowSize, windowSize);
@@ -146,12 +129,9 @@ public class YahooBenchmark extends InputStream {
 			groupByAttributes = new Expression [] {new LongColumnReference(3)};
 		else
 			groupByAttributes = new Expression [] {new LongLongColumnReference(3)};
-		//================================================================================
+
 		
-		
-		
-		//================================================================================
-        // Create and initialize the operator for computing the Benchmark's data.		
+		// Create and initialize the operator for computing the Benchmark's data.
 		IOperatorCode cpuCode = new YahooBenchmarkOp (
 				inputSchema, 
 				selectPredicate, 
@@ -159,16 +139,11 @@ public class YahooBenchmark extends InputStream {
 				joinPredicate, 
 				relationSchema,
 				relationBuffer,
-				//multimap,
 				hashMap,
 				windowDefinition, null, null, null
-				//aggregationTypes, 
-				//aggregationAttributes, 
-				//groupByAttributes
 				,isV2
 				);
 		
-		//cpuCode = new NoOp ();
 		IOperatorCode gpuCode = null;
 		
 		QueryOperator operator;
@@ -187,19 +162,17 @@ public class YahooBenchmark extends InputStream {
 		ITupleSchema joinSchema = ((YahooBenchmarkOp) cpuCode).getOutputSchema();
 		cpuCode = new Aggregation (windowDefinition, aggregationTypes, aggregationAttributes, groupByAttributes);
 
-		
 		IPredicate selectPredicate2 = new IntComparisonPredicate
 				(IntComparisonPredicate.NONEQUAL_OP, new IntColumnReference(1), new IntConstant(0));
-		//cpuCode = new Selection (selectPredicate2);
 		operator = new QueryOperator (cpuCode, gpuCode);
 		operators = new HashSet<QueryOperator>();
 		operators.add(operator);
 		Query query2 = new Query (1, operators, joinSchema, windowDefinition, null, null, queryConf, timestampReference);
 		
-		
+
+		// Connect the two queries
 		queries.add(query2);
 		query1.connectTo(query2);
-		// ...
 
 		if (isExecuted) {
 			application = new QueryApplication(queries);
@@ -211,8 +184,7 @@ public class YahooBenchmark extends InputStream {
 			else
 				query2.setAggregateOperator((IAggregateOperator) gpuCode);
 		}
-		//================================================================================
-		
+
 		return;
 	}
 	

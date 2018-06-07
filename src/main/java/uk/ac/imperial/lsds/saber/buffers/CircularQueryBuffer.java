@@ -31,7 +31,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 	
 	private PaddedLong h;
 	
-	// parallelize writing/copying
+	/* parallelize the work of dispatcher thread */
 	public boolean isParallel;
 	private CircularBufferWorker [] workers;
 	public AtomicInteger isReady;
@@ -45,7 +45,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 	public int counter = -1;
 	public byte[] inputBuffer;
 	public CountDownLatch latch; 
-	//
+	/* 												*/
 
 	private static int nextPowerOfTwo (int size) {
 		
@@ -87,11 +87,9 @@ public class CircularQueryBuffer implements IQueryBuffer {
 		bytesProcessed = new AtomicLong (0L);
 		
 		h = new PaddedLong (0L);
-		
-		// parallelize the copying/writing		
-		isParallel = true;	
 
-		//this.id = 0;
+		/* parallelize the work of dispatcher thread */
+		isParallel = true;
 		if (this.id == 0) {
 			numberOfThreads = 2;
 			int coreToBind = 1;
@@ -105,7 +103,7 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			isBufferFilledLatch = new Latch(numberOfThreads);
 			latch = new CountDownLatch(numberOfThreads);
 			timestampBase = System.currentTimeMillis();
-			timestamp = System.currentTimeMillis() - timestampBase;//0;
+			timestamp = System.currentTimeMillis() - timestampBase;
 		}		
 		
 		if (! this.isDirect) {
@@ -264,12 +262,6 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			globalIndex = index;
 			globalLength = length/numberOfThreads;
 			timestamp = System.currentTimeMillis() - timestampBase;
-	
-			/*if (this.counter == Integer.MAX_VALUE)
-				this.counter = -1;
-			else
-				this.counter++; 	
-			*/
 			inputBuffer = values;
 			
 			if (this.isReady.get() == Integer.MAX_VALUE)
@@ -279,13 +271,8 @@ public class CircularQueryBuffer implements IQueryBuffer {
 			
 			while (this.isBufferFilledLatch.getCount()!=0)
 				Thread.yield();
-			
-			/*while (this.latch.getCount()!=0)
-				;*/
-			
+
 			this.isBufferFilledLatch.setLatch(numberOfThreads);
-			
-			//this.latch = new CountDownLatch(numberOfThreads);
 		} else {
 			
 			if (length > (size - index)) { 
