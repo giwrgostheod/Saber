@@ -23,7 +23,6 @@ public class CampaignGenerator {
 	public int adsPerCampaign = 0;
 	public ITupleSchema campaignsSchema = null; 
 	public IQueryBuffer relationBuffer = null;
-	//public Multimap<Long,Integer> multimap;
 	public HashMap hashMap = null;
 	long [][] adsArray = null;
 	
@@ -38,23 +37,19 @@ public class CampaignGenerator {
 		this.adsPerCampaign = adsPerCampaign;
 		this.campaignsSchema = isV2? createCampaignsSchemaV2() : createCampaignsSchema();
 		this.adsArray = new long [100 * adsPerCampaign][2];
-		
 		this.isV2 = isV2;
 		
 		/* Generate the campaigns and their ads*/
-		
 		if (isV2)
 			generateBufferV2();
 		else
-			generateBuffer(); 
-
+			generateBuffer();
 		
 		/* Create Hash Table*/
 		int column = isV2?((LongColumnReference) joinPredicate.getSecondExpression()).getColumn() : 
 							((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
 		int offset = campaignsSchema.getAttributeOffset(column);
 		createHashMap(relationBuffer, offset);
-		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
 	}
 	
 	public CampaignGenerator (int adsPerCampaign, IPredicate joinPredicate, ByteBuffer campaigns) {
@@ -75,7 +70,6 @@ public class CampaignGenerator {
 		int column = ((LongColumnReference) joinPredicate.getSecondExpression()).getColumn(); // ((LongLongColumnReference) joinPredicate.getSecondExpression()).getColumn();
 		int offset = campaignsSchema.getAttributeOffset(column);
 		createHashMap(relationBuffer, offset);
-		//createRelationalHashTable(relationBuffer, offset); // this hashMap is not used
 	}
 
 	/* 100 = The number of campaigns to generate events for */
@@ -83,8 +77,7 @@ public class CampaignGenerator {
 		
 		int [] offsets = new int [2];
 		
-		//offsets[0] =  0; /* Timestamp:	   long */
-		offsets[0] =  0; /* Ad Id:   	   uuid */ 
+		offsets[0] =  0; /* Ad Id:   	   uuid */
 		offsets[1] = 16; /* Campaign Id:   uuid	*/
 				
 		ITupleSchema schema = new TupleSchema (offsets, 32);
@@ -224,21 +217,6 @@ public class CampaignGenerator {
 		this.relationBuffer.put(data, data.length);	
 	}
 	
-	/*public void createRelationalHashTable(IQueryBuffer relationBuffer, int offset) {
-		
-		this.multimap = ArrayListMultimap.create();		
-		IQueryBuffer buffer = relationBuffer;		
-		int tupleSize = campaignsSchema.getTupleSize();
-		
-		int endIndex = SystemConf.RELATIONAL_TABLE_BUFFER_SIZE; //batch1.getBufferEndPointer();		
-		int i = 0;
-		while ( i < endIndex) {
-			// check if the column is float						
-			multimap.put(buffer.getLong(i + offset + 8), i);
-			i += tupleSize;
-		}		
-	}*/
-	
 	public void createHashMap(IQueryBuffer relationBuffer, int offset) {
 		
 		this.hashMap = new HashMap();		
@@ -274,10 +252,6 @@ public class CampaignGenerator {
 	public IQueryBuffer getRelationBuffer () {
 		return this.relationBuffer;
 	}
-	
-	/*public Multimap<Long,Integer> getHashTable () {
-		return this.multimap;
-	}*/
 	
 	public HashMap getHashMap () {
 		return this.hashMap;

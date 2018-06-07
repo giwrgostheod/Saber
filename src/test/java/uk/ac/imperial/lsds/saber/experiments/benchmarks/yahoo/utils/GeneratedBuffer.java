@@ -1,4 +1,4 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
+package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;

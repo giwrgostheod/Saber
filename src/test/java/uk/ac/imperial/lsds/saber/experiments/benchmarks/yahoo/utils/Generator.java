@@ -1,4 +1,4 @@
-package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.generator;
+package uk.ac.imperial.lsds.saber.experiments.benchmarks.yahoo.utils;
 
 import java.util.ArrayList;
 import java.util.List;
