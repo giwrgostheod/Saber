@@ -1,7 +1,7 @@
 
 USAGE="usage: ./run.sh [class name]"
 
-MVN="/home/grt17/.m2/repository"
+MVN="/home/$USER/.m2/repository"
 
 # LOG4J="${MVN}/log4j/log4j/1.2.12/log4j-1.2.12.jar"
 
@@ -62,14 +62,8 @@ if [ ! -f ${CLASSFILE} ]; then
         exit 1
 fi
 
-for i in 1 2 3 4 5 6
-do
-    for j in 0 1 2 3 4
-    do 
-        java $OPTS -cp $JCP $CLASS $@ "$i" > results/result_cores_"$i"_trial_"$j".txt
-    done
-done
 
+java $OPTS -cp $JCP $CLASS $@ 
 
 
 echo "Done."
