@@ -2,7 +2,7 @@
 # Customised for platypus1 running Linux on Thu Jan 19 07:53:49 GMT 2017
 #
 OS = Linux
-JAVA_HOME = /usr/lib/jvm/java-7-openjdk-amd64
+JAVA_HOME = /usr/lib/jvm/java-8-oracle
 CUDA_HOME = /usr/local/cuda
 
 CLASS_PATH = ../target/classes
@@ -29,7 +29,7 @@ ifeq ($(OS), Darwin)
 	CFLAGS += -I$(JAVA_HOME)/include/darwin
 else
 	CFLAGS += -I$(JAVA_HOME)/include
-	CFLAGS += -I$(JAVA_HOME)/linux
+	CFLAGS += -I$(JAVA_HOME)/include/linux
 endif
 
 CFLAGS += -I/usr/include -D_GNU_SOURCE
